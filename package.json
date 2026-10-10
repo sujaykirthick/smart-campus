@@ -6,12 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "tsx scripts/seed.ts",
+    "seed:reviews": "tsx scripts/seed-reviews.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.28.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
+    "dotenv": "^18.0.7",
+    "html5-qrcode": "^2.3.8",
+    "lucide-react": "^1.55.0",
     "next": "16.4.0",
+    "qrcode.react": "^4.2.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
