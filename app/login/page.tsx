@@ -9,14 +9,7 @@ import {
   KeyRound,
   Mail,
   AlertCircle,
-  Sparkles,
   Building2,
-  Shield,
-  GraduationCap,
-  Calendar,
-  CheckCircle2,
-  ArrowRight,
-  Lock,
 } from 'lucide-react';
 
 function LoginForm() {
@@ -60,7 +53,7 @@ function LoginForm() {
 
       const userRole = allowedUserData?.role || authData.user.user_metadata?.role || 'student';
 
-      // Redirect by role according to requirements
+      // Redirect by role
       if (nextParam) {
         router.push(nextParam);
       } else {
@@ -96,213 +89,121 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-5xl overflow-hidden rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] shadow-xl flex flex-col md:flex-row min-h-[600px]">
-        {/* Left Side: Deep Red Toned Brand & Highlights Panel */}
-        <div className="relative md:w-5/12 bg-gradient-to-br from-[#8E1A22] via-[#B3202A] to-[#681116] p-8 sm:p-10 text-white flex flex-col justify-between overflow-hidden">
-          {/* Subtle gold decorative top bar */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#C9A24B] via-[#E5C378] to-[#C9A24B]" />
+    <div className="flex-1 flex items-center justify-center bg-[#F5F5F5] p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-md overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs">
+        {/* Institutional Red Header Strip */}
+        <div className="h-1.5 w-full bg-[#A4161A]" />
 
-          {/* Background grid accent */}
-          <div className="absolute -bottom-16 -right-16 h-64 w-64 rounded-full bg-[#FFFFFF]/5 blur-2xl" />
+        <div className="p-6 sm:p-8 space-y-6">
+          <div className="text-center space-y-1">
+            <h1 className="text-xl font-bold text-neutral-900">
+              Sign in
+            </h1>
+            <p className="text-xs text-neutral-500">
+              Amrita Vishwa Vidyapeetham Campus Portal
+            </p>
+          </div>
 
-          <div className="space-y-6 relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 backdrop-blur-xs border border-white/20 text-[#C9A24B]">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
+          {/* Error Alert */}
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
               <div>
-                <span className="font-serif text-2xl font-bold tracking-tight text-white flex items-center gap-1">
-                  GENESIS
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#C9A24B]" />
-                </span>
-                <span className="text-[11px] font-mono tracking-widest text-[#E5C378] uppercase">
-                  Campus Events Governance
-                </span>
+                <p className="font-semibold">Unable to sign in</p>
+                <p className="mt-0.5 text-[11px]">{error}</p>
               </div>
             </div>
+          )}
 
-            <div className="space-y-3 pt-4">
-              <h1 className="font-serif text-2xl sm:text-3xl font-extrabold leading-tight text-white">
-                Intelligent Venue Allocation &amp; Event Logistics
-              </h1>
-              <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
-                Seamless campus events management with zero-clash hall booking, verified digital passes, and instant attendance analytics.
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <div className="flex items-start gap-2.5 text-xs text-white/90">
-                <CheckCircle2 className="h-4 w-4 text-[#C9A24B] shrink-0 mt-0.5" />
-                <span>Postgres exclusion constraints ensure zero double-booked halls</span>
-              </div>
-              <div className="flex items-start gap-2.5 text-xs text-white/90">
-                <CheckCircle2 className="h-4 w-4 text-[#C9A24B] shrink-0 mt-0.5" />
-                <span>Row Level Security (RLS) protects student privacy</span>
-              </div>
-              <div className="flex items-start gap-2.5 text-xs text-white/90">
-                <CheckCircle2 className="h-4 w-4 text-[#C9A24B] shrink-0 mt-0.5" />
-                <span>Automated waitlist promotions and real-time QR check-in</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-white/10 relative z-10 flex items-center justify-between text-xs text-white/70">
-            <span>Amrita Vishwa Vidyapeetham</span>
-            <Link href="/halls" className="text-[#E5C378] hover:text-white font-semibold flex items-center gap-1 transition-colors">
-              Halls <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Right Side: Form Panel */}
-        <div className="md:w-7/12 p-8 sm:p-10 flex flex-col justify-between space-y-6 bg-[#FFFFFF]">
-          <div className="space-y-6 max-w-md mx-auto w-full">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#FAF0F0] border border-[#EADFD6] px-3 py-1 text-xs font-semibold text-[#B3202A]">
-                <Lock className="h-3.5 w-3.5" />
-                Campus Single Sign-On
-              </div>
-              <h2 className="font-serif text-2xl font-bold text-[#2B1B17] mt-2">
-                Sign In to Your Account
-              </h2>
-              <p className="text-xs text-[#7A6A62] mt-1">
-                Enter your campus email and password to access the portal.
-              </p>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@demo.edu"
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none"
+              />
             </div>
 
-            {/* Error Alert */}
-            {error && (
-              <div className="rounded-xl border border-[#FECACA] bg-[#FEE2E2] p-3.5 text-xs text-[#7F1D1D] flex items-start gap-2.5">
-                <AlertCircle className="h-4 w-4 shrink-0 text-[#7F1D1D] mt-0.5" />
-                <div>
-                  <p className="font-bold">Sign in error</p>
-                  <p className="mt-0.5 text-[11px]">{error}</p>
-                </div>
-              </div>
-            )}
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none"
+              />
+            </div>
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#2B1B17] mb-1.5 uppercase tracking-wider">
-                  Campus Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A6A62]" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student1@demo.edu"
-                    className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] py-2.5 pl-10 pr-4 text-xs text-[#2B1B17] placeholder:text-[#A3938B] focus:border-[#B3202A] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#B3202A]"
-                  />
-                </div>
-              </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-md bg-[#A4161A] py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-[#851215] disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              {loading ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                'Sign in'
+              )}
+            </button>
+          </form>
 
-              <div>
-                <label className="block text-xs font-bold text-[#2B1B17] mb-1.5 uppercase tracking-wider">
-                  Password
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A6A62]" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] py-2.5 pl-10 pr-4 text-xs text-[#2B1B17] placeholder:text-[#A3938B] focus:border-[#B3202A] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#B3202A]"
-                  />
-                </div>
-              </div>
+          {/* Plain Demo accounts box */}
+          <div className="rounded-md border border-neutral-200 bg-[#F5F5F5] p-3 space-y-2">
+            <div className="text-[11px] font-semibold text-neutral-600">
+              Demo accounts (Password: demo1234)
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => quickFill('student1@demo.edu')}
+                className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+              >
+                <div className="font-semibold text-[11px]">Student</div>
+                <div className="text-[10px] text-neutral-500 truncate font-mono">student1@demo.edu</div>
+              </button>
 
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-2 rounded-xl bg-[#B3202A] py-3 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                type="button"
+                onClick={() => quickFill('codingclub@demo.edu')}
+                className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
               >
-                {loading ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <>
-                    <LogIn className="h-4 w-4" />
-                    Sign In to Portal
-                  </>
-                )}
+                <div className="font-semibold text-[11px]">Club</div>
+                <div className="text-[10px] text-neutral-500 truncate font-mono">codingclub@demo.edu</div>
               </button>
-            </form>
 
-            {/* Quick Demo Logins */}
-            <div className="border-t border-[#EADFD6] pt-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#7A6A62] mb-2.5 text-center">
-                Quick Demo Switcher (Password: demo1234)
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => quickFill('student1@demo.edu')}
-                  className="flex items-center gap-2 rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-2 text-left hover:border-[#C9A24B] hover:bg-white transition-colors cursor-pointer group"
-                >
-                  <div className="rounded-lg p-1.5 bg-[#FDF8ED] text-[#A07C28] group-hover:scale-105 transition-transform">
-                    <GraduationCap className="h-3.5 w-3.5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#2B1B17] text-[11px]">Student</div>
-                    <div className="text-[10px] text-[#7A6A62] font-mono truncate">student1@demo.edu</div>
-                  </div>
-                </button>
+              <button
+                type="button"
+                onClick={() => quickFill('cse@demo.edu')}
+                className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+              >
+                <div className="font-semibold text-[11px]">Department</div>
+                <div className="text-[10px] text-neutral-500 truncate font-mono">cse@demo.edu</div>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => quickFill('codingclub@demo.edu')}
-                  className="flex items-center gap-2 rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-2 text-left hover:border-[#B3202A] hover:bg-white transition-colors cursor-pointer group"
-                >
-                  <div className="rounded-lg p-1.5 bg-[#FEF3C7] text-[#B45309] group-hover:scale-105 transition-transform">
-                    <Sparkles className="h-3.5 w-3.5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#2B1B17] text-[11px]">Club Organizer</div>
-                    <div className="text-[10px] text-[#7A6A62] font-mono truncate">codingclub@demo.edu</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => quickFill('cse@demo.edu')}
-                  className="flex items-center gap-2 rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-2 text-left hover:border-[#B3202A] hover:bg-white transition-colors cursor-pointer group"
-                >
-                  <div className="rounded-lg p-1.5 bg-[#FAF0F0] text-[#8E1A22] group-hover:scale-105 transition-transform">
-                    <Building2 className="h-3.5 w-3.5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#2B1B17] text-[11px]">Department</div>
-                    <div className="text-[10px] text-[#7A6A62] font-mono truncate">cse@demo.edu</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => quickFill('affairs@demo.edu')}
-                  className="flex items-center gap-2 rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-2 text-left hover:border-[#7F1D1D] hover:bg-white transition-colors cursor-pointer group"
-                >
-                  <div className="rounded-lg p-1.5 bg-[#FEE2E2] text-[#7F1D1D] group-hover:scale-105 transition-transform">
-                    <Shield className="h-3.5 w-3.5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#2B1B17] text-[11px]">Student Welfare</div>
-                    <div className="text-[10px] text-[#7A6A62] font-mono truncate">affairs@demo.edu</div>
-                  </div>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => quickFill('affairs@demo.edu')}
+                className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+              >
+                <div className="font-semibold text-[11px]">Student Welfare</div>
+                <div className="text-[10px] text-neutral-500 truncate font-mono">affairs@demo.edu</div>
+              </button>
             </div>
           </div>
 
-          {/* Footer public link */}
-          <div className="text-center text-xs text-[#7A6A62]">
-            Want to check hall availability first?{' '}
-            <Link href="/halls" className="font-bold text-[#B3202A] hover:underline">
-              View Public Halls Schedule &rarr;
+          <div className="text-center text-xs text-neutral-500">
+            <Link href="/halls" className="text-[#A4161A] hover:underline font-medium">
+              View Hall Availability Schedule
             </Link>
           </div>
         </div>
@@ -316,7 +217,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="flex-1 flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#B3202A] border-t-transparent" />
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#A4161A] border-t-transparent" />
         </div>
       }
     >

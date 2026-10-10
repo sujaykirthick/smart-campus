@@ -12,14 +12,10 @@ import {
   AlertTriangle,
   XCircle,
   Users,
-  Calendar,
-  MapPin,
   Clock,
   ArrowLeft,
   FileSpreadsheet,
   RefreshCw,
-  Search,
-  ShieldCheck,
   Send,
   Loader2,
   VideoOff,
@@ -44,7 +40,7 @@ export default function OrganizerScannerPage() {
   // Manual fallback input
   const [manualToken, setManualToken] = useState('');
 
-  // Audio feedback cues
+  // Audio/Debounce cues
   const lastScannedRef = useRef<{ token: string; time: number } | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -144,7 +140,6 @@ export default function OrganizerScannerPage() {
     const cleanToken = token.trim();
     if (!cleanToken) return;
 
-    // Debounce duplicate reads of the exact same code within 3 seconds
     if (
       lastScannedRef.current &&
       lastScannedRef.current.token === cleanToken &&
@@ -198,7 +193,6 @@ export default function OrganizerScannerPage() {
     async function startCamera() {
       try {
         setCameraError(null);
-        // Check cameras
         const cameras = await Html5Qrcode.getCameras();
         if (!cameras || cameras.length === 0) {
           if (isMounted) setCameraError('No video camera detected on this device.');
@@ -210,22 +204,19 @@ export default function OrganizerScannerPage() {
         const html5Qr = new Html5Qrcode(scannerElementId);
         scannerRef.current = html5Qr;
 
-        // Prefer rear camera on phones
         const selectedCamera = cameras[cameras.length - 1].id;
 
         await html5Qr.start(
           selectedCamera,
           {
             fps: 10,
-            qrbox: { width: 260, height: 260 },
+            qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
           },
           (decodedText) => {
             handleCheckin(decodedText);
           },
-          () => {
-            // Ignore frame no-match noise
-          }
+          () => {}
         );
 
         if (isMounted) {
@@ -236,13 +227,12 @@ export default function OrganizerScannerPage() {
         if (isMounted) {
           setCameraActive(false);
           setCameraError(
-            err?.message || 'Camera permission denied or camera not accessible.'
+            err?.message || 'Camera permission denied or device camera is unavailable.'
           );
         }
       }
     }
 
-    // Delay slight tick for DOM element mount
     const timer = setTimeout(() => {
       startCamera();
     }, 400);
@@ -277,55 +267,55 @@ export default function OrganizerScannerPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[#B3202A]" />
-        <div className="text-sm font-medium text-[#7A6A62]">Loading scanner module...</div>
+      <div className="mx-auto max-w-4xl px-4 py-12 flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="h-6 w-6 animate-spin text-[#A4161A]" />
+        <div className="text-xs text-neutral-500">Loading scanner module...</div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Header & Breadcrumbs */}
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href={isOrganizerOrAffairs ? '/organizer' : '/my-events'}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#EADFD6] bg-white text-[#2B1B17] shadow-xs hover:bg-[#FFFAF5] hover:text-[#B3202A] transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-serif text-2xl font-bold tracking-tight text-[#2B1B17]">
-                Live QR Scanner
+              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+                Attendance Scanner
               </h1>
               {!isOrganizerOrAffairs && (
-                <span className="rounded-full bg-[#FFFAF5] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8E1A22] border border-[#C9A24B]/50">
-                  Volunteer Mode
+                <span className="rounded bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-700">
+                  Volunteer
                 </span>
               )}
             </div>
-            <p className="text-xs text-[#7A6A62]">
+            <p className="text-xs text-neutral-500">
               {event?.title} • {event?.halls?.name}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {isOrganizerOrAffairs && (
             <Link
               href={`/organizer/events/${eventId}/od`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
             >
-              <FileSpreadsheet className="h-4 w-4" />
+              <FileSpreadsheet className="h-3.5 w-3.5" />
               OD Attendance List
             </Link>
           )}
 
           <button
             onClick={loadEventData}
-            className="rounded-xl border border-[#EADFD6] bg-white p-2 text-[#7A6A62] shadow-xs hover:bg-[#FFFAF5] hover:text-[#2B1B17] transition-colors cursor-pointer"
+            className="rounded border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
             title="Refresh list"
           >
             <RefreshCw className="h-4 w-4" />
@@ -333,55 +323,53 @@ export default function OrganizerScannerPage() {
         </div>
       </div>
 
-      {/* Live Counter Widget */}
+      {/* Live Counter Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-800">
+            <CheckCircle2 className="h-4 w-4 text-emerald-700" />
             Checked In
           </div>
-          <div className="font-serif text-3xl font-extrabold text-emerald-900 mt-1">
+          <div className="text-2xl font-bold text-emerald-900 mt-1">
             {scannedCount}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#C9A24B]/30 bg-gradient-to-br from-[#FFFAF5] to-white p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#8E1A22]">
-            <Users className="h-4 w-4 text-[#B3202A]" />
+        <div className="rounded-md border border-neutral-200 bg-white p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-600">
+            <Users className="h-4 w-4 text-[#A4161A]" />
             Total Registered
           </div>
-          <div className="font-serif text-3xl font-extrabold text-[#2B1B17] mt-1">
+          <div className="text-2xl font-bold text-neutral-900 mt-1">
             {totalRegistered}
           </div>
         </div>
 
-        <div className="col-span-2 sm:col-span-1 rounded-2xl border border-[#EADFD6] bg-white p-4 shadow-xs">
-          <div className="text-xs font-semibold text-[#7A6A62]">Attendance Rate</div>
-          <div className="font-serif text-3xl font-extrabold text-[#2B1B17] mt-1">
+        <div className="col-span-2 sm:col-span-1 rounded-md border border-neutral-200 bg-white p-3.5 shadow-xs">
+          <div className="text-xs font-medium text-neutral-500">Attendance Rate</div>
+          <div className="text-2xl font-bold text-neutral-900 mt-1">
             {totalRegistered > 0 ? Math.round((scannedCount / totalRegistered) * 100) : 0}%
           </div>
         </div>
       </div>
 
-      {/* SCAN RESULT BANNER (Large Green / Amber / Red) */}
+      {/* SCAN RESULT BANNER */}
       {scanResult && (
-        <div className="animate-in fade-in zoom-in-95 duration-200">
+        <div>
           {scanResult.status === 'ok' && (
-            <div className="overflow-hidden rounded-2xl border-2 border-emerald-600 bg-emerald-700 p-6 text-white shadow-lg">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
-                  <CheckCircle2 className="h-7 w-7 text-white" />
-                </div>
-                <div className="space-y-1 flex-1">
-                  <div className="text-xs font-bold uppercase tracking-widest text-emerald-100">
-                    Scan Successful • Checked In
+            <div className="rounded-md border border-emerald-300 bg-emerald-700 p-5 text-white shadow-sm">
+              <div className="flex items-start gap-3.5">
+                <CheckCircle2 className="h-6 w-6 text-white shrink-0 mt-0.5" />
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-100">
+                    Checked In Successfully
                   </div>
-                  <h2 className="font-serif text-2xl font-bold tracking-tight">
+                  <h2 className="text-xl font-bold tracking-tight">
                     {scanResult.student_name || 'Student Verified'}
                   </h2>
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-sm font-semibold text-emerald-100">
-                    <span className="font-mono bg-emerald-800/80 px-2.5 py-0.5 rounded-lg border border-emerald-500/50">
-                      Roll No: {scanResult.roll_no || 'N/A'}
+                  <div className="flex flex-wrap items-center gap-3 pt-0.5 text-xs font-medium text-emerald-100">
+                    <span className="font-mono bg-emerald-800 px-2 py-0.5 rounded">
+                      Roll: {scanResult.roll_no || 'N/A'}
                     </span>
                     <span>{scanResult.student_email}</span>
                   </div>
@@ -391,22 +379,20 @@ export default function OrganizerScannerPage() {
           )}
 
           {scanResult.status === 'already_scanned' && (
-            <div className="overflow-hidden rounded-2xl border-2 border-amber-600 bg-amber-600 p-6 text-white shadow-lg">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
-                  <AlertTriangle className="h-7 w-7 text-white" />
-                </div>
-                <div className="space-y-1 flex-1">
-                  <div className="text-xs font-bold uppercase tracking-widest text-amber-100">
-                    Duplicate Read Warning
+            <div className="rounded-md border border-amber-300 bg-amber-600 p-5 text-white shadow-sm">
+              <div className="flex items-start gap-3.5">
+                <AlertTriangle className="h-6 w-6 text-white shrink-0 mt-0.5" />
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-100">
+                    Duplicate Scan
                   </div>
-                  <h2 className="font-serif text-2xl font-bold tracking-tight">
-                    Already Scanned at {formatTimeOnly(scanResult.checked_in_at)}
+                  <h2 className="text-xl font-bold tracking-tight">
+                    Already Checked In at {formatTimeOnly(scanResult.checked_in_at)}
                   </h2>
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-sm font-semibold text-amber-100">
+                  <div className="flex flex-wrap items-center gap-3 pt-0.5 text-xs font-medium text-amber-100">
                     <span>{scanResult.student_name}</span>
-                    <span className="font-mono bg-amber-700/80 px-2.5 py-0.5 rounded-lg border border-amber-400/50">
-                      Roll No: {scanResult.roll_no || 'N/A'}
+                    <span className="font-mono bg-amber-700 px-2 py-0.5 rounded">
+                      Roll: {scanResult.roll_no || 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -415,19 +401,17 @@ export default function OrganizerScannerPage() {
           )}
 
           {scanResult.status === 'outside_window' && (
-            <div className="overflow-hidden rounded-2xl border-2 border-amber-600 bg-amber-600 p-6 text-white shadow-lg">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
-                  <Clock className="h-7 w-7 text-white" />
-                </div>
-                <div className="space-y-1 flex-1">
-                  <div className="text-xs font-bold uppercase tracking-widest text-amber-100">
-                    Outside Allowed Check-in Window
+            <div className="rounded-md border border-amber-300 bg-amber-600 p-5 text-white shadow-sm">
+              <div className="flex items-start gap-3.5">
+                <Clock className="h-6 w-6 text-white shrink-0 mt-0.5" />
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-amber-100">
+                    Outside Allowed Window
                   </div>
-                  <h2 className="font-serif text-2xl font-bold tracking-tight">
+                  <h2 className="text-xl font-bold tracking-tight">
                     Check-in Unavailable
                   </h2>
-                  <p className="text-sm font-medium text-amber-100 pt-0.5">
+                  <p className="text-xs text-amber-100 pt-0.5">
                     {scanResult.message || 'Scanning opens 30 min before start and closes 30 min after the event ends.'}
                   </p>
                 </div>
@@ -436,20 +420,18 @@ export default function OrganizerScannerPage() {
           )}
 
           {scanResult.status === 'invalid' && (
-            <div className="overflow-hidden rounded-2xl border-2 border-[#7F1D1D] bg-[#8E1A22] p-6 text-white shadow-lg">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
-                  <XCircle className="h-7 w-7 text-white" />
-                </div>
-                <div className="space-y-1 flex-1">
-                  <div className="text-xs font-bold uppercase tracking-widest text-red-100">
-                    Check-in Rejected
+            <div className="rounded-md border border-red-300 bg-[#991B1B] p-5 text-white shadow-sm">
+              <div className="flex items-start gap-3.5">
+                <XCircle className="h-6 w-6 text-white shrink-0 mt-0.5" />
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-red-100">
+                    Scan Rejected
                   </div>
-                  <h2 className="font-serif text-2xl font-bold tracking-tight">
-                    Invalid QR Code
+                  <h2 className="text-xl font-bold tracking-tight">
+                    Invalid Pass
                   </h2>
-                  <p className="text-sm text-red-100 pt-0.5">
-                    {scanResult.message || 'The presented token does not belong to an authorized registration for this event.'}
+                  <p className="text-xs text-red-100 pt-0.5">
+                    {scanResult.message || 'The token does not match an active confirmed pass for this event.'}
                   </p>
                 </div>
               </div>
@@ -458,57 +440,57 @@ export default function OrganizerScannerPage() {
         </div>
       )}
 
-      {/* SCANNER WORKSPACE: CAMERA & MANUAL FALLBACK */}
+      {/* CAMERA & MANUAL FALLBACK */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Camera Viewfinder */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="relative overflow-hidden rounded-3xl border border-[#2B1B17] bg-[#2B1B17] p-4 shadow-xl text-white">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-700 text-xs">
-              <span className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#C9A24B]">
-                <Camera className="h-4 w-4" /> Live Camera Viewfinder
+        {/* Left: Camera Viewfinder */}
+        <div className="lg:col-span-7 space-y-3">
+          <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
+            <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200 text-xs">
+              <span className="flex items-center gap-1.5 font-semibold text-neutral-800">
+                <Camera className="h-4 w-4 text-[#A4161A]" /> Camera Scanner
               </span>
               {isProcessing && (
-                <span className="flex items-center gap-1.5 text-xs text-amber-400 font-semibold">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verifying...
+                <span className="flex items-center gap-1 text-xs text-amber-700 font-medium">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Verifying...
                 </span>
               )}
             </div>
 
-            {/* Camera View Area */}
-            <div className="relative min-h-[300px] w-full flex items-center justify-center overflow-hidden rounded-2xl bg-black/60 mt-3">
-              <div id="qr-camera-feed" className="w-full max-w-sm overflow-hidden rounded-xl" />
+            {/* Viewfinder */}
+            <div className="relative min-h-[280px] w-full flex items-center justify-center overflow-hidden rounded bg-neutral-900 mt-3">
+              <div id="qr-camera-feed" className="w-full max-w-xs overflow-hidden" />
 
               {cameraError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-black/90 space-y-2">
-                  <VideoOff className="h-10 w-10 text-zinc-500" />
-                  <p className="text-xs text-zinc-300 font-medium max-w-xs">{cameraError}</p>
-                  <p className="text-[11px] text-zinc-500">
-                    You can type the 48-character QR token in the manual input below.
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-neutral-900 text-white space-y-2">
+                  <VideoOff className="h-8 w-8 text-neutral-500" />
+                  <p className="text-xs text-neutral-300 font-medium max-w-xs">{cameraError}</p>
+                  <p className="text-[11px] text-neutral-500">
+                    Use the manual input field below to enter token.
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Manual Token Entry Fallback */}
-            <div className="mt-4 pt-3 border-t border-zinc-700">
-              <form onSubmit={handleManualSubmit} className="space-y-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  Manual Token Fallback (Demo / Camera Override)
+            {/* Manual Token Entry */}
+            <div className="mt-4 pt-3 border-t border-neutral-200">
+              <form onSubmit={handleManualSubmit} className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-neutral-700">
+                  Manual Token Entry
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={manualToken}
                     onChange={(e) => setManualToken(e.target.value)}
-                    placeholder="Paste 48-char QR token..."
-                    className="flex-1 rounded-xl border border-zinc-700 bg-black/40 px-3.5 py-2 text-xs text-white font-mono placeholder:text-zinc-500 focus:border-[#C9A24B] focus:outline-none"
+                    placeholder="Enter QR token..."
+                    className="flex-1 rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-900 font-mono placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none"
                   />
                   <button
                     type="submit"
                     disabled={!manualToken.trim() || isProcessing}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#B3202A] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] transition-colors disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors disabled:opacity-50 cursor-pointer"
                   >
-                    <Send className="h-3.5 w-3.5" /> Check In
+                    <Send className="h-3 w-3" /> Submit
                   </button>
                 </div>
               </form>
@@ -516,22 +498,21 @@ export default function OrganizerScannerPage() {
           </div>
         </div>
 
-        {/* Right Column: Live Attendees Check-in Feed */}
-        <div className="lg:col-span-5 space-y-3">
+        {/* Right: Live Attendees Feed */}
+        <div className="lg:col-span-5 space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="font-serif text-sm font-bold text-[#2B1B17] flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-700" />
-              Live Check-in Activity
+            <h3 className="text-xs font-semibold text-neutral-800">
+              Live Check-in Stream
             </h3>
-            <span className="text-xs text-[#7A6A62] font-medium">
+            <span className="text-xs text-neutral-500">
               {scannedCount} of {totalRegistered} present
             </span>
           </div>
 
-          <div className="h-[460px] overflow-y-auto rounded-2xl border border-[#EADFD6] bg-white p-3 shadow-xs divide-y divide-[#EADFD6]">
+          <div className="h-[420px] overflow-y-auto rounded-md border border-neutral-200 bg-white p-2 shadow-xs divide-y divide-neutral-100">
             {registrations.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center p-6 text-center text-[#7A6A62] text-xs">
-                <Users className="h-8 w-8 mb-2 opacity-40 text-[#EADFD6]" />
+              <div className="flex h-full flex-col items-center justify-center p-6 text-center text-neutral-400 text-xs">
+                <Users className="h-6 w-6 mb-1 text-neutral-300" />
                 No registrations found for this event.
               </div>
             ) : (
@@ -541,17 +522,15 @@ export default function OrganizerScannerPage() {
                 return (
                   <div
                     key={reg.id}
-                    className={`py-3 px-2 flex items-center justify-between text-xs transition-colors rounded-xl ${
-                      isChecked
-                        ? 'bg-emerald-50/50'
-                        : 'opacity-70'
+                    className={`py-2 px-2 flex items-center justify-between text-xs ${
+                      isChecked ? 'bg-emerald-50/40' : ''
                     }`}
                   >
                     <div className="space-y-0.5 min-w-0 pr-2">
-                      <div className="font-bold text-[#2B1B17] truncate">
+                      <div className="font-medium text-neutral-900 truncate">
                         {reg.student_email}
                       </div>
-                      <div className="font-mono text-[11px] text-[#8E1A22] font-semibold">
+                      <div className="font-mono text-[11px] text-[#A4161A]">
                         Roll: {reg.roll_no || 'N/A'}
                       </div>
                     </div>
@@ -559,15 +538,15 @@ export default function OrganizerScannerPage() {
                     <div className="text-right shrink-0">
                       {isChecked ? (
                         <div className="space-y-0.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                            <CheckCircle2 className="h-2.5 w-2.5" /> Scanned
+                          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+                            <CheckCircle2 className="h-2.5 w-2.5" /> Checked
                           </span>
-                          <div className="text-[10px] text-[#7A6A62] font-mono">
+                          <div className="text-[10px] text-neutral-500 font-mono">
                             {formatTimeOnly(reg.checked_in_at!)}
                           </div>
                         </div>
                       ) : (
-                        <span className="rounded-full bg-[#FFFAF5] border border-[#EADFD6] px-2 py-0.5 text-[10px] font-medium text-[#7A6A62]">
+                        <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
                           Pending
                         </span>
                       )}

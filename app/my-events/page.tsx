@@ -16,16 +16,12 @@ import {
   Building2,
   Trash2,
   RefreshCw,
-  Sparkles,
-  ShieldCheck,
   X,
   Compass,
   Hourglass,
   HandHelping,
   Camera,
-  Layers,
   Star,
-  MessageSquarePlus,
   Loader2,
 } from 'lucide-react';
 
@@ -211,7 +207,7 @@ export default function MyEventsPage() {
   }, [loadData]);
 
   const handleCancelRegistration = async (regId: string, eventTitle: string, isWaitlist: boolean) => {
-    const actionLabel = isWaitlist ? 'leave the waitlist for' : 'cancel your confirmed pass for';
+    const actionLabel = isWaitlist ? 'leave the waitlist for' : 'cancel registration for';
     if (!confirm(`Are you sure you want to ${actionLabel} "${eventTitle}"?`)) return;
 
     setCancellingId(regId);
@@ -251,7 +247,6 @@ export default function MyEventsPage() {
     try {
       const existing = userReviews[reviewingEvent.id];
       if (existing) {
-        // Update existing review
         const { error } = await supabase
           .from('reviews')
           .update({
@@ -262,7 +257,6 @@ export default function MyEventsPage() {
 
         if (error) throw error;
       } else {
-        // Insert new review
         const { error } = await supabase
           .from('reviews')
           .insert({
@@ -279,7 +273,7 @@ export default function MyEventsPage() {
       loadData();
     } catch (err: any) {
       console.error('Error submitting review:', err);
-      setReviewError(err?.message || 'Failed to submit review. You must have checked in to review ended events.');
+      setReviewError(err?.message || 'Failed to submit review.');
     } finally {
       setSubmittingReview(false);
     }
@@ -313,70 +307,66 @@ export default function MyEventsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-      {/* Header Banner */}
-      <div className="overflow-hidden rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A24B]/30 bg-[#FDF8ED] px-3.5 py-1 text-xs font-bold text-[#A07C28]">
-              <QrCode className="h-3.5 w-3.5" />
-              Student Digital Wallet &amp; Volunteering
-            </div>
-            <h1 className="font-serif text-3xl sm:text-4xl font-extrabold tracking-tight text-[#2B1B17]">
-              My Passes &amp; Activity
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+      {/* Header Bar */}
+      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+              My Event Passes
             </h1>
-            <p className="text-xs sm:text-sm text-[#7A6A62]">
-              Digital event passes, real-time waitlist standings, post-event feedback, and volunteer scanner roles
+            <p className="mt-1 text-sm text-neutral-500">
+              Entry passes, waitlist status, and volunteer assignments.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link
               href="/events"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-4 py-2.5 text-xs font-bold text-[#2B1B17] shadow-xs hover:border-[#B3202A] hover:text-[#B3202A] hover:bg-[#FFFFFF] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
             >
-              <Compass className="h-4 w-4" /> Browse Events
+              <Compass className="h-3.5 w-3.5" /> Browse Events
             </Link>
 
             <button
               onClick={loadData}
-              className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-2.5 text-[#7A6A62] shadow-xs hover:border-[#B3202A] hover:text-[#B3202A] hover:bg-[#FFFFFF] transition-colors cursor-pointer"
-              title="Refresh tickets"
+              className="rounded-md border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
+              title="Refresh passes"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* User identification badge bar */}
+        {/* User identification bar */}
         {profile && (
-          <div className="mt-6 pt-4 border-t border-[#EADFD6] flex flex-wrap items-center gap-6 text-xs text-[#7A6A62]">
+          <div className="mt-4 pt-4 border-t border-neutral-200 flex flex-wrap items-center gap-4 text-xs text-neutral-600">
             <div>
-              <span className="text-[#A3938B] font-medium">Student Name: </span>
-              <span className="font-bold text-[#2B1B17]">{profile.name || profile.email}</span>
+              <span className="text-neutral-400">Student: </span>
+              <span className="font-semibold text-neutral-900">{profile.name || profile.email}</span>
             </div>
             {profile.roll_no && (
               <div>
-                <span className="text-[#A3938B] font-medium">Roll Number: </span>
-                <span className="font-mono font-bold text-[#B3202A]">{profile.roll_no}</span>
+                <span className="text-neutral-400">Roll No: </span>
+                <span className="font-mono font-semibold text-[#A4161A]">{profile.roll_no}</span>
               </div>
             )}
             <div>
-              <span className="text-[#A3938B] font-medium">Email: </span>
-              <span className="font-mono text-[#2B1B17]">{profile.email}</span>
+              <span className="text-neutral-400">Email: </span>
+              <span className="font-mono text-neutral-800">{profile.email}</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Tabs Switcher: Event Passes vs Volunteer Roles (Pill Tabs) */}
-      <div className="flex items-center gap-2 border-b border-[#EADFD6] pb-2">
+      {/* Underlined Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-neutral-200">
         <button
           onClick={() => setActiveViewTab('passes')}
-          className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
             activeViewTab === 'passes'
-              ? 'bg-[#B3202A] text-white shadow-xs'
-              : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#7A6A62] hover:text-[#2B1B17] hover:border-[#B3202A]'
+              ? 'border-[#A4161A] text-[#A4161A] font-semibold'
+              : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
           }`}
         >
           <QrCode className="h-3.5 w-3.5" />
@@ -385,10 +375,10 @@ export default function MyEventsPage() {
 
         <button
           onClick={() => setActiveViewTab('volunteering')}
-          className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
             activeViewTab === 'volunteering'
-              ? 'bg-[#B3202A] text-white shadow-xs'
-              : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#7A6A62] hover:text-[#2B1B17] hover:border-[#B3202A]'
+              ? 'border-[#A4161A] text-[#A4161A] font-semibold'
+              : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
           }`}
         >
           <HandHelping className="h-3.5 w-3.5" />
@@ -397,8 +387,8 @@ export default function MyEventsPage() {
       </div>
 
       {errorMsg && (
-        <div className="rounded-xl border border-[#FECACA] bg-[#FEE2E2] p-4 text-xs text-[#7F1D1D] flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-[#7F1D1D] shrink-0" />
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
@@ -407,29 +397,29 @@ export default function MyEventsPage() {
       {activeViewTab === 'passes' && (
         <>
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-48 w-full animate-pulse rounded-2xl bg-[#EADFD6]/40" />
+                <div key={i} className="h-40 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
               ))}
             </div>
           ) : registrations.length === 0 ? (
-            <div className="rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] p-12 text-center shadow-xs">
-              <QrCode className="mx-auto h-12 w-12 text-[#D5C5B8]" />
-              <h3 className="mt-3 font-serif text-lg font-bold text-[#2B1B17]">
-                No registered events yet
+            <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
+              <QrCode className="mx-auto h-10 w-10 text-neutral-300" />
+              <h3 className="mt-3 text-base font-semibold text-neutral-900">
+                No registered events
               </h3>
-              <p className="mt-1 text-xs text-[#7A6A62]">
-                Browse the campus feed and register for exciting events to get your digital QR passes.
+              <p className="mt-1 text-xs text-neutral-500">
+                Browse available campus events to register and receive digital QR passes.
               </p>
               <Link
                 href="/events"
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#B3202A] px-4 py-2.5 text-xs font-bold text-white shadow hover:bg-[#8E1A22] transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
               >
-                <Compass className="h-4 w-4" /> Explore Events
+                <Compass className="h-3.5 w-3.5" /> Explore Events
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {registrations.map((reg) => {
                 const ev = reg.events;
                 if (!ev) return null;
@@ -447,136 +437,136 @@ export default function MyEventsPage() {
                 return (
                   <div
                     key={reg.id}
-                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[#EADFD6] bg-[#FFFFFF] shadow-xs transition-all hover:shadow-md hover:border-[#B3202A]/40"
+                    className="flex flex-col justify-between overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
                   >
-                    <div className="p-6 space-y-4">
-                      <div className="flex items-start justify-between gap-4">
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             {isWaitlisted ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#FDE68A] px-2.5 py-0.5 text-[10px] font-bold text-[#B45309]">
-                                <Hourglass className="h-3 w-3" /> #{waitlistRank} on waitlist
+                              <span className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900">
+                                <Hourglass className="h-3 w-3" /> Waitlist #{waitlistRank}
                               </span>
                             ) : isCheckedIn ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold text-[#15803D]">
+                              <span className="inline-flex items-center gap-1 rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
                                 <CheckCircle2 className="h-3 w-3" /> Checked In
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#FDF8ED] border border-[#C9A24B]/40 px-2.5 py-0.5 text-[10px] font-bold text-[#A07C28]">
-                                <ShieldCheck className="h-3 w-3" /> Confirmed Pass
+                              <span className="inline-flex items-center gap-1 rounded bg-neutral-100 border border-neutral-200 px-2 py-0.5 text-[10px] font-medium text-neutral-800">
+                                Confirmed Pass
                               </span>
                             )}
 
                             {ev.fests && (
-                              <span className="rounded-md bg-[#C9A24B] px-2 py-0.5 text-[10px] font-bold text-[#2B1B17]">
+                              <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] font-medium text-white">
                                 {ev.fests.name}
                               </span>
                             )}
 
                             {hasEnded && (
-                              <span className="rounded-md bg-[#FAF5F0] border border-[#EADFD6] px-2 py-0.5 text-[10px] font-bold text-[#7A6A62]">
+                              <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-500 font-medium">
                                 Ended
                               </span>
                             )}
                           </div>
 
-                          <h3 className="font-serif text-lg font-bold text-[#2B1B17] pt-1">
+                          <h3 className="text-base font-bold text-neutral-900 pt-0.5">
                             {ev.title}
                           </h3>
-                          <p className="text-xs text-[#7A6A62] font-semibold">
-                            Organized by {ev.club_or_dept || 'Campus'}
+                          <p className="text-xs text-neutral-500">
+                            {ev.club_or_dept || 'Campus'}
                           </p>
                         </div>
 
-                        {/* QR Thumbnail (Only for Confirmed passes before event ends) */}
+                        {/* QR Thumbnail */}
                         {!isWaitlisted && (
                           <button
                             onClick={() => setSelectedTicket(reg)}
-                            className="p-2 rounded-xl bg-white border border-[#EADFD6] hover:border-[#B3202A] shadow-xs cursor-pointer shrink-0 transition-transform hover:scale-105"
-                            title="Click to view QR code"
+                            className="p-1.5 rounded border border-neutral-200 bg-white hover:border-[#A4161A] shadow-xs cursor-pointer shrink-0"
+                            title="View QR pass"
                           >
-                            <QRCodeSVG value={reg.qr_token} size={64} level="M" />
+                            <QRCodeSVG value={reg.qr_token} size={52} level="M" />
                           </button>
                         )}
                       </div>
 
-                      {/* Waitlist Status Notice */}
+                      {/* Waitlist Notice */}
                       {isWaitlisted && (
-                        <div className="rounded-xl border border-[#FDE68A] bg-[#FEF3C7] p-3 text-xs text-[#B45309] space-y-1">
-                          <div className="font-bold flex items-center gap-1.5">
-                            <Hourglass className="h-3.5 w-3.5 text-[#B45309]" />
-                            Waitlist Standing: Position #{waitlistRank}
+                        <div className="rounded border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 space-y-1">
+                          <div className="font-semibold flex items-center gap-1.5">
+                            <Hourglass className="h-3.5 w-3.5 text-amber-700" />
+                            Waitlist Position #{waitlistRank}
                           </div>
-                          <p className="text-[11px] leading-relaxed">
-                            You will be automatically promoted to confirmed if another attendee cancels before the event. Your QR pass will be unlocked upon promotion.
+                          <p className="text-[11px] text-amber-800">
+                            You will be automatically confirmed if another attendee cancels before start time.
                           </p>
                         </div>
                       )}
 
                       {/* Metadata */}
-                      <div className="space-y-1.5 pt-2 border-t border-[#EADFD6] text-xs text-[#7A6A62]">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-[#B3202A] shrink-0" />
+                      <div className="space-y-1 pt-2 border-t border-neutral-100 text-xs text-neutral-600">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
                           <span>{ev.halls?.name || 'Campus Venue'}</span>
                         </div>
-                        <div className="flex items-center gap-2 font-mono text-[11px]">
-                          <Clock className="h-3.5 w-3.5 text-[#7A6A62] shrink-0" />
+                        <div className="flex items-center gap-1.5 text-[11px] text-neutral-500 font-mono">
+                          <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
                           <span>{dateStr} • {startTimeStr} – {endTimeStr}</span>
                         </div>
                       </div>
 
                       {isCheckedIn && (
-                        <div className="rounded-lg bg-[#DCFCE7] border border-[#BBF7D0] p-2 text-[11px] text-[#15803D] flex items-center gap-1.5 font-semibold">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-[#15803D] shrink-0" />
-                          <span>Attendance recorded at {new Date(reg.checked_in_at!).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                        <div className="rounded bg-emerald-50 border border-emerald-200 p-2 text-[11px] text-emerald-800 flex items-center gap-1.5 font-medium">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                          <span>Checked in at {new Date(reg.checked_in_at!).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                         </div>
                       )}
 
-                      {/* Student Review Section if event ended and student attended */}
+                      {/* Review Section */}
                       {isCheckedIn && hasEnded && (
-                        <div className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-3 text-xs space-y-2">
+                        <div className="rounded border border-neutral-200 bg-neutral-50 p-2.5 text-xs space-y-1.5">
                           {userReview ? (
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <div className="flex items-center gap-1 text-[#C9A24B] font-bold">
+                                <div className="flex items-center gap-1 text-amber-600 font-semibold">
                                   {Array.from({ length: 5 }).map((_, i) => (
                                     <Star
                                       key={i}
-                                      className={`h-3.5 w-3.5 ${
+                                      className={`h-3 w-3 ${
                                         i < userReview.rating
-                                          ? 'fill-[#C9A24B] text-[#C9A24B]'
-                                          : 'text-[#D5C5B8]'
+                                          ? 'fill-amber-500 text-amber-500'
+                                          : 'text-neutral-300'
                                       }`}
                                     />
                                   ))}
-                                  <span className="text-[#2B1B17] ml-1 font-mono text-[11px]">
+                                  <span className="text-neutral-700 ml-1 font-mono text-[11px]">
                                     ({userReview.rating}/5)
                                   </span>
                                 </div>
                                 {userReview.comment && (
-                                  <p className="mt-1 text-[#7A6A62] text-[11px] italic line-clamp-2">
+                                  <p className="mt-1 text-neutral-600 text-[11px] italic line-clamp-2">
                                     &ldquo;{userReview.comment}&rdquo;
                                   </p>
                                 )}
                               </div>
                               <button
                                 onClick={() => handleOpenReviewModal(ev.id, ev.title)}
-                                className="text-[11px] font-bold text-[#B3202A] hover:underline cursor-pointer shrink-0"
+                                className="text-[11px] font-semibold text-[#A4161A] hover:underline cursor-pointer shrink-0"
                               >
-                                Edit Review
+                                Edit
                               </button>
                             </div>
                           ) : (
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[#7A6A62] text-[11px]">
-                                Attended this event? Share feedback!
+                              <span className="text-neutral-600 text-[11px]">
+                                Submit event feedback
                               </span>
                               <button
                                 onClick={() => handleOpenReviewModal(ev.id, ev.title)}
-                                className="inline-flex items-center gap-1 rounded-lg bg-[#B3202A] px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-[#8E1A22] transition-colors cursor-pointer shrink-0"
+                                className="inline-flex items-center gap-1 rounded bg-[#A4161A] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer shrink-0"
                               >
                                 <Star className="h-3 w-3 fill-white" />
-                                Leave a review
+                                Review
                               </button>
                             </div>
                           )}
@@ -584,38 +574,27 @@ export default function MyEventsPage() {
                       )}
                     </div>
 
-                    {/* Footer Buttons */}
-                    <div className="p-4 bg-[#FFFAF5] border-t border-[#EADFD6] flex items-center justify-between gap-3">
+                    {/* Card Actions */}
+                    <div className="p-3 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between gap-2">
                       {!isWaitlisted ? (
                         <button
                           onClick={() => setSelectedTicket(reg)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#B3202A] py-2 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] transition-colors cursor-pointer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded bg-[#A4161A] py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
                         >
                           <QrCode className="h-3.5 w-3.5" />
-                          Open QR Pass
+                          View Pass
                         </button>
                       ) : (
-                        <div className="text-xs text-[#7A6A62] font-semibold italic">
-                          Pass locked while on waitlist
+                        <div className="text-xs text-neutral-500 font-medium">
+                          Pass locked on waitlist
                         </div>
-                      )}
-
-                      {/* If attended and ended, provide review action */}
-                      {isCheckedIn && hasEnded && !userReview && (
-                        <button
-                          onClick={() => handleOpenReviewModal(ev.id, ev.title)}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[#B3202A] bg-white px-3 py-2 text-xs font-bold text-[#B3202A] hover:bg-[#FAF0F0] transition-colors cursor-pointer"
-                        >
-                          <Star className="h-3.5 w-3.5 fill-[#C9A24B] text-[#C9A24B]" />
-                          Review
-                        </button>
                       )}
 
                       {!hasStarted && !isCheckedIn && (
                         <button
                           onClick={() => handleCancelRegistration(reg.id, ev.title, isWaitlisted)}
                           disabled={cancellingId === reg.id}
-                          className="rounded-xl border border-[#FECACA] bg-white px-3 py-2 text-xs font-bold text-[#7F1D1D] hover:bg-[#FEE2E2] transition-colors cursor-pointer"
+                          className="rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-[#991B1B] hover:bg-red-50 transition-colors cursor-pointer"
                           title={isWaitlisted ? 'Leave Waitlist' : 'Cancel Registration'}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -634,23 +613,23 @@ export default function MyEventsPage() {
       {activeViewTab === 'volunteering' && (
         <div>
           {volunteerRoles.length === 0 ? (
-            <div className="rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] p-12 text-center shadow-xs">
-              <HandHelping className="mx-auto h-12 w-12 text-[#D5C5B8]" />
-              <h3 className="mt-3 font-serif text-lg font-bold text-[#2B1B17]">
-                No volunteer applications yet
+            <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
+              <HandHelping className="mx-auto h-10 w-10 text-neutral-300" />
+              <h3 className="mt-3 text-base font-semibold text-neutral-900">
+                No volunteer applications
               </h3>
-              <p className="mt-1 text-xs text-[#7A6A62]">
-                Browse campus events requesting student volunteers to apply and assist event coordinators.
+              <p className="mt-1 text-xs text-neutral-500">
+                Apply for volunteer openings on upcoming campus events.
               </p>
               <Link
                 href="/events"
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#B3202A] px-4 py-2.5 text-xs font-bold text-white shadow hover:bg-[#8E1A22] transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
               >
-                <Compass className="h-4 w-4" /> Find Volunteer Opportunities
+                <Compass className="h-3.5 w-3.5" /> Find Opportunities
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {volunteerRoles.map((vol) => {
                 const ev = vol.events;
                 if (!ev) return null;
@@ -661,66 +640,66 @@ export default function MyEventsPage() {
                 return (
                   <div
                     key={vol.id}
-                    className="flex flex-col justify-between overflow-hidden rounded-2xl border border-[#EADFD6] bg-[#FFFFFF] shadow-xs"
+                    className="flex flex-col justify-between overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
                   >
-                    <div className="p-6 space-y-4">
-                      <div className="flex items-start justify-between gap-4">
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             {isAccepted ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#DCFCE7] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold text-[#15803D]">
+                              <span className="inline-flex items-center gap-1 rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
                                 <CheckCircle2 className="h-3 w-3" /> Accepted Volunteer
                               </span>
                             ) : vol.status === 'rejected' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#FEE2E2] border border-[#FECACA] px-2.5 py-0.5 text-[10px] font-bold text-[#7F1D1D]">
+                              <span className="inline-flex items-center gap-1 rounded bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-medium text-[#991B1B]">
                                 <AlertCircle className="h-3 w-3" /> Application Declined
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] border border-[#FDE68A] px-2.5 py-0.5 text-[10px] font-bold text-[#B45309]">
+                              <span className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900">
                                 <Clock className="h-3 w-3" /> Application Pending
                               </span>
                             )}
                           </div>
 
-                          <h3 className="font-serif text-lg font-bold text-[#2B1B17] pt-1">
+                          <h3 className="text-base font-bold text-neutral-900 pt-0.5">
                             {ev.title}
                           </h3>
-                          <p className="text-xs text-[#7A6A62] font-semibold">
+                          <p className="text-xs text-neutral-500">
                             Coordinator: {ev.organizer_email}
                           </p>
                         </div>
 
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FAF0F0] text-[#B3202A] shrink-0">
-                          <HandHelping className="h-5 w-5" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded bg-neutral-100 text-[#A4161A] shrink-0">
+                          <HandHelping className="h-4 w-4" />
                         </div>
                       </div>
 
-                      <div className="space-y-1.5 pt-2 border-t border-[#EADFD6] text-xs text-[#7A6A62]">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-[#B3202A] shrink-0" />
+                      <div className="space-y-1 pt-2 border-t border-neutral-100 text-xs text-neutral-600">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
                           <span>{ev.halls?.name || 'Campus Venue'}</span>
                         </div>
-                        <div className="flex items-center gap-2 font-mono text-[11px]">
-                          <Clock className="h-3.5 w-3.5 text-[#7A6A62] shrink-0" />
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-500">
+                          <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
                           <span>{dateStr} • {startTimeStr} – {endTimeStr}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-4 bg-[#FFFAF5] border-t border-[#EADFD6]">
+                    <div className="p-3 bg-neutral-50 border-t border-neutral-200">
                       {isAccepted ? (
                         <Link
                           href={`/organizer/scan/${vol.event_id}`}
-                          className="flex items-center justify-center gap-2 rounded-xl bg-[#15803D] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166534] transition-colors"
+                          className="flex items-center justify-center gap-2 rounded bg-emerald-700 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors"
                         >
-                          <Camera className="h-4 w-4" />
-                          Scan Attendance (Volunteer Scanner)
+                          <Camera className="h-3.5 w-3.5" />
+                          Open Volunteer Scanner
                         </Link>
                       ) : (
-                        <div className="text-xs text-center text-[#7A6A62]">
+                        <div className="text-xs text-center text-neutral-500">
                           {vol.status === 'rejected'
-                            ? 'The organizer has filled all available volunteer slots.'
-                            : 'Waiting for organizer approval.'}
+                            ? 'Volunteer quota filled.'
+                            : 'Pending organizer approval.'}
                         </div>
                       )}
                     </div>
@@ -734,40 +713,35 @@ export default function MyEventsPage() {
 
       {/* LEAVE A REVIEW MODAL */}
       {reviewingEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="relative w-full max-w-md rounded-3xl bg-[#FFFFFF] p-6 shadow-2xl border border-[#EADFD6] space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-md rounded-md bg-white p-6 shadow-lg border border-neutral-200 space-y-4">
             <button
               onClick={() => setReviewingEvent(null)}
-              className="absolute top-4 right-4 rounded-full bg-[#FFFAF5] p-2 text-[#7A6A62] hover:bg-[#FAF0F0] hover:text-[#B3202A] transition-colors cursor-pointer"
+              className="absolute top-4 right-4 rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#FDF8ED] border border-[#C9A24B]/30 px-3 py-1 text-xs font-bold text-[#A07C28]">
-                <Star className="h-3.5 w-3.5 fill-[#C9A24B]" />
-                Event Feedback
-              </div>
-              <h2 className="font-serif text-xl font-bold text-[#2B1B17]">
-                Review {reviewingEvent.title}
+            <div>
+              <h2 className="text-lg font-bold text-neutral-900">
+                Event Feedback: {reviewingEvent.title}
               </h2>
-              <p className="text-xs text-[#7A6A62]">
-                Your feedback is anonymous to organizers and helps improve future campus events.
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Feedback is anonymous to organizers.
               </p>
             </div>
 
             {reviewError && (
-              <div className="rounded-xl border border-[#FECACA] bg-[#FEE2E2] p-3 text-xs text-[#7F1D1D] flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-[#7F1D1D] shrink-0" />
+              <div className="rounded border border-red-200 bg-red-50 p-2.5 text-xs text-[#991B1B] flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
                 <span>{reviewError}</span>
               </div>
             )}
 
             <form onSubmit={handleSubmitReview} className="space-y-4">
-              {/* Star Rating Selector (1 to 5) */}
               <div>
-                <label className="block text-xs font-bold text-[#2B1B17] mb-2">
-                  Rating (1 to 5 Stars)
+                <label className="block text-xs font-semibold text-neutral-800 mb-1.5">
+                  Rating
                 </label>
                 <div className="flex items-center gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -775,49 +749,48 @@ export default function MyEventsPage() {
                       key={star}
                       type="button"
                       onClick={() => setReviewRating(star)}
-                      className="p-2 rounded-xl border border-[#EADFD6] bg-[#FFFAF5] hover:bg-[#FDF8ED] transition-all cursor-pointer group"
+                      className="p-1.5 rounded border border-neutral-300 bg-white hover:bg-neutral-50 cursor-pointer"
                     >
                       <Star
-                        className={`h-7 w-7 transition-transform group-hover:scale-110 ${
+                        className={`h-6 w-6 ${
                           star <= reviewRating
-                            ? 'fill-[#C9A24B] text-[#C9A24B]'
-                            : 'text-[#D5C5B8]'
+                            ? 'fill-amber-500 text-amber-500'
+                            : 'text-neutral-300'
                         }`}
                       />
                     </button>
                   ))}
-                  <span className="font-bold text-sm text-[#2B1B17] ml-2">
+                  <span className="font-semibold text-xs text-neutral-800 ml-1">
                     {reviewRating} of 5
                   </span>
                 </div>
               </div>
 
-              {/* Optional Comment */}
               <div>
-                <label className="block text-xs font-bold text-[#2B1B17] mb-1.5">
-                  Your Comments (Optional)
+                <label className="block text-xs font-semibold text-neutral-800 mb-1">
+                  Comments (Optional)
                 </label>
                 <textarea
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="What worked well? What could be improved for next time?"
-                  rows={4}
-                  className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-3 text-xs text-[#2B1B17] focus:border-[#B3202A] focus:bg-white focus:outline-none"
+                  placeholder="Share feedback on session structure, content, and logistics..."
+                  rows={3}
+                  className="w-full rounded border border-neutral-300 bg-white p-2.5 text-xs text-neutral-900 focus:border-[#A4161A] focus:outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EADFD6]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-200">
                 <button
                   type="button"
                   onClick={() => setReviewingEvent(null)}
-                  className="rounded-xl border border-[#EADFD6] bg-[#FFFFFF] px-4 py-2 text-xs font-semibold text-[#7A6A62] hover:bg-[#FFFAF5] cursor-pointer"
+                  className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingReview}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#B3202A] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] transition-colors disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {submittingReview ? (
                     <>
@@ -825,7 +798,7 @@ export default function MyEventsPage() {
                       Submitting...
                     </>
                   ) : (
-                    'Submit Review'
+                    'Submit Feedback'
                   )}
                 </button>
               </div>
@@ -836,40 +809,38 @@ export default function MyEventsPage() {
 
       {/* FULL SCREEN HIGH-CONTRAST QR PASS MODAL (Mobile First) */}
       {selectedTicket && selectedTicket.events && selectedTicket.status === 'confirmed' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-3xl bg-[#FFFFFF] p-6 text-[#2B1B17] shadow-2xl border-4 border-[#2B1B17] space-y-5">
-            {/* Close Button */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <div className="relative w-full max-w-sm rounded-md bg-white p-6 text-neutral-900 shadow-xl border border-neutral-200 space-y-4">
             <button
               onClick={() => setSelectedTicket(null)}
-              className="absolute top-4 right-4 rounded-full bg-[#FFFAF5] p-2 text-[#7A6A62] hover:bg-[#FAF0F0] hover:text-[#B3202A] transition-colors cursor-pointer"
+              className="absolute top-4 right-4 rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
 
-            {/* Ticket Header & Student Roll / Name */}
-            <div className="text-center space-y-1.5 pt-2">
-              <div className="inline-flex items-center gap-1 rounded-full bg-[#B3202A] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white">
-                <ShieldCheck className="h-3.5 w-3.5 text-[#E5C378]" />
-                GENESIS DIGITAL PASS
+            {/* Header & Student Roll / Name */}
+            <div className="text-center space-y-1 pt-1">
+              <div className="inline-block rounded bg-[#A4161A] px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">
+                Digital Event Pass
               </div>
 
-              <h2 className="font-serif text-xl font-extrabold text-[#2B1B17] tracking-tight leading-snug pt-1">
+              <h2 className="text-lg font-bold text-neutral-900 leading-snug pt-1">
                 {selectedTicket.events.title}
               </h2>
 
-              <div className="mt-2 rounded-xl bg-[#FFFAF5] border border-[#EADFD6] p-2.5 text-xs text-[#2B1B17] font-medium">
-                <div className="font-extrabold text-sm text-[#2B1B17] tracking-wide">
+              <div className="mt-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                <div className="font-bold text-sm text-neutral-900">
                   {profile?.name || selectedTicket.student_email}
                 </div>
-                <div className="font-mono text-xs font-bold text-[#B3202A] mt-0.5">
+                <div className="font-mono text-xs font-semibold text-[#A4161A] mt-0.5">
                   Roll No: {selectedTicket.roll_no || profile?.roll_no || 'N/A'}
                 </div>
               </div>
             </div>
 
-            {/* BRIGHTNESS-FRIENDLY HIGH-CONTRAST QR CODE */}
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-white p-4 border-2 border-[#2B1B17] shadow-inner">
-              <div className="p-3 bg-white rounded-xl">
+            {/* HIGH-CONTRAST QR CODE */}
+            <div className="flex flex-col items-center justify-center rounded border border-neutral-300 bg-white p-4">
+              <div className="p-2 bg-white">
                 <QRCodeSVG
                   value={selectedTicket.qr_token}
                   size={200}
@@ -878,28 +849,28 @@ export default function MyEventsPage() {
                 />
               </div>
 
-              <span className="mt-2 font-mono text-[10px] text-[#7A6A62] tracking-wider select-all">
+              <span className="mt-2 font-mono text-[10px] text-neutral-500 select-all">
                 TOKEN: {selectedTicket.qr_token}
               </span>
             </div>
 
             {/* Venue and Timing */}
-            <div className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-3 space-y-1.5 text-xs text-[#2B1B17]">
-              <div className="flex items-center justify-between font-semibold">
+            <div className="rounded border border-neutral-200 bg-neutral-50 p-2.5 space-y-1 text-xs text-neutral-700">
+              <div className="flex items-center justify-between font-medium">
                 <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5 text-[#B3202A]" />
+                  <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
                   {selectedTicket.events.halls?.name || 'Campus Venue'}
                 </span>
                 {selectedTicket.checked_in_at ? (
-                  <span className="text-[#15803D] font-bold flex items-center gap-1">
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
                     <CheckCircle2 className="h-3.5 w-3.5" /> Checked In
                   </span>
                 ) : (
-                  <span className="text-[#B3202A] font-bold">Ready for scan</span>
+                  <span className="text-[#A4161A] font-medium">Ready for scan</span>
                 )}
               </div>
 
-              <div className="text-[11px] text-[#7A6A62] font-mono">
+              <div className="text-[11px] text-neutral-500 font-mono">
                 {new Date(selectedTicket.events.start_time).toLocaleDateString('en-US', {
                   weekday: 'short',
                   month: 'short',
@@ -912,16 +883,15 @@ export default function MyEventsPage() {
               </div>
             </div>
 
-            {/* Check-in prompt */}
-            <div className="text-center text-[11px] text-[#7A6A62]">
-              Present this QR code to the event coordinator at the hall entrance.
-            </div>
+            <p className="text-center text-[11px] text-neutral-500">
+              Present this code at the hall entrance for check-in verification.
+            </p>
 
             <button
               onClick={() => setSelectedTicket(null)}
-              className="w-full rounded-xl bg-[#2B1B17] py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#B3202A] transition-colors cursor-pointer"
+              className="w-full rounded bg-neutral-900 py-2 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors cursor-pointer"
             >
-              Done
+              Close
             </button>
           </div>
         </div>

@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   UploadCloud,
   CheckCircle2,
-  Sparkles,
   Info,
   Users,
 } from 'lucide-react';
@@ -74,7 +73,6 @@ export default function EventFormModal({
           .order('name', { ascending: true });
 
         if (!ignore && !error && data) {
-          // If editing an event with a specific fest, include that fest even if inactive
           const available = data.filter(
             (f) => f.is_active || (initialEvent && f.id === initialEvent.fest_id)
           );
@@ -162,7 +160,6 @@ export default function EventFormModal({
           .order('start_time', { ascending: true });
 
         if (!ignore && !error && data) {
-          // Filter out the event itself if currently editing
           const filtered = initialEvent ? data.filter((b) => b.title !== initialEvent.title) : data;
           setHallBookings(filtered);
         }
@@ -192,7 +189,6 @@ export default function EventFormModal({
       const bStart = new Date(b.start_time).getTime();
       const bEnd = new Date(b.end_time).getTime();
 
-      // Check time overlap: (StartA < EndB) and (EndA > StartB)
       if (myStart < bEnd && myEnd > bStart) {
         return b;
       }
@@ -200,7 +196,7 @@ export default function EventFormModal({
     return null;
   }, [date, startTime, endTime, hallBookings]);
 
-  // Warning when editing an already approved event: changing time or venue triggers re-approval
+  // Warning when editing an already approved event
   const isApprovedEventResubmission = useMemo(() => {
     if (!initialEvent || initialEvent.status !== 'approved') return false;
     if (!date || !startTime || !endTime) return false;
@@ -221,7 +217,6 @@ export default function EventFormModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setErrorMessage('Poster file size must be less than 5MB.');
       return;
@@ -348,40 +343,38 @@ export default function EventFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] shadow-2xl my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/60">
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg my-6">
+        {/* Institutional Red Top Strip */}
+        <div className="h-1 bg-[#A4161A] w-full" />
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#EADFD6] bg-[#FFFAF5] px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#B3202A] text-white shadow-xs">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-serif text-lg font-bold text-[#2B1B17]">
-                {initialEvent ? 'Edit Event Proposal' : 'Propose New Event'}
-              </h3>
-              <p className="text-xs text-[#7A6A62]">
-                {clubOrDept} • {userEmail}
-              </p>
-            </div>
+        <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-6 py-4">
+          <div>
+            <h3 className="text-lg font-bold text-neutral-900">
+              {initialEvent ? 'Edit Event Proposal' : 'Propose New Event'}
+            </h3>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {clubOrDept} • {userEmail}
+            </p>
           </div>
 
           <button
             onClick={onClose}
-            className="rounded-full p-1.5 text-[#7A6A62] hover:bg-[#FAF0F0] hover:text-[#B3202A] transition-colors cursor-pointer"
+            className="rounded p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <div className="max-h-[75vh] overflow-y-auto p-6 space-y-5">
+        <div className="max-h-[75vh] overflow-y-auto p-6 space-y-4">
           {/* Error Banner */}
           {errorMessage && (
-            <div className="rounded-xl border border-[#FECACA] bg-[#FEE2E2] p-4 text-xs text-[#7F1D1D] flex items-start gap-3">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-[#7F1D1D] mt-0.5" />
+            <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
               <div>
-                <span className="font-bold">Attention: </span>
+                <span className="font-semibold">Error: </span>
                 <span>{errorMessage}</span>
               </div>
             </div>
@@ -389,29 +382,27 @@ export default function EventFormModal({
 
           {/* Re-approval Warning */}
           {isApprovedEventResubmission && (
-            <div className="rounded-xl border border-[#FDE68A] bg-[#FEF3C7] p-4 text-xs text-[#B45309] flex items-start gap-3">
-              <Info className="h-4 w-4 shrink-0 text-[#B45309] mt-0.5" />
+            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2.5">
+              <Info className="h-4 w-4 shrink-0 text-amber-700 mt-0.5" />
               <div>
-                <span className="font-bold">Re-approval notice: </span>
+                <span className="font-semibold">Re-approval notice: </span>
                 <span>
-                  Modifying the venue or scheduled time of an approved event will send the event back
-                  for re-approval by Student Welfare.
+                  Modifying the venue or schedule of an approved event resets its status to submitted for Student Welfare re-approval.
                 </span>
               </div>
             </div>
           )}
 
-          {/* Conflict Detected Early Warning */}
+          {/* Conflict Warning */}
           {conflictDetected && (
-            <div className="rounded-xl border border-[#FECACA] bg-[#FEE2E2] p-4 text-xs text-[#7F1D1D] flex items-start gap-3">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-[#7F1D1D] mt-0.5" />
+            <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
               <div>
-                <span className="font-bold">Schedule Conflict Warning: </span>
+                <span className="font-semibold">Schedule Conflict: </span>
                 <span>
-                  This hall has an approved booking for &ldquo;{conflictDetected.title}&rdquo; (
-                  {formatBookingTime(conflictDetected.start_time)} –{' '}
-                  {formatBookingTime(conflictDetected.end_time)}). Submitting for this slot may be
-                  blocked upon approval.
+                  &ldquo;{conflictDetected.title}&rdquo; is approved in this hall from{' '}
+                  {formatBookingTime(conflictDetected.start_time)} to{' '}
+                  {formatBookingTime(conflictDetected.end_time)}.
                 </span>
               </div>
             </div>
@@ -419,43 +410,43 @@ export default function EventFormModal({
 
           {/* Event Title */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5">
-              Event Title <span className="text-[#B3202A]">*</span>
+            <label className="block text-xs font-semibold text-neutral-800 mb-1">
+              Event Title <span className="text-[#A4161A]">*</span>
             </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Anokha 2026 - Autonomous Robotics Hackathon"
-              className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2.5 text-xs sm:text-sm text-[#2B1B17] placeholder:text-[#A3938B] focus:border-[#B3202A] focus:bg-white focus:outline-none"
+              placeholder="e.g. Workshop on Embedded Systems"
+              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5">
+            <label className="block text-xs font-semibold text-neutral-800 mb-1">
               Description
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Provide a comprehensive summary of the event schedule, target audience, and objectives..."
-              className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2.5 text-xs sm:text-sm text-[#2B1B17] placeholder:text-[#A3938B] focus:border-[#B3202A] focus:bg-white focus:outline-none"
+              placeholder="Event overview, objectives, and schedule details..."
+              className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none"
             />
           </div>
 
           {/* Hall Selection & Fest */}
-          <div className={`grid grid-cols-1 ${activeFests.length > 0 ? 'sm:grid-cols-2' : ''} gap-4`}>
+          <div className={`grid grid-cols-1 ${activeFests.length > 0 ? 'sm:grid-cols-2' : ''} gap-3`}>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-[#B3202A]" /> Hall Venue <span className="text-[#B3202A]">*</span>
+              <label className="block text-xs font-semibold text-neutral-800 mb-1 flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-[#A4161A]" /> Hall Venue <span className="text-[#A4161A]">*</span>
               </label>
               <select
                 value={hallId}
                 onChange={(e) => setHallId(e.target.value)}
-                className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2.5 text-xs sm:text-sm text-[#2B1B17] focus:border-[#B3202A] focus:outline-none cursor-pointer"
+                className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none cursor-pointer"
               >
                 {halls.map((h) => (
                   <option key={h.id} value={h.id}>
@@ -465,16 +456,16 @@ export default function EventFormModal({
               </select>
             </div>
 
-            {/* Fest Dropdown: Only shown when active fests exist */}
+            {/* Fest Dropdown */}
             {activeFests.length > 0 && (
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-[#C9A24B]" /> Fest Association
+                <label className="block text-xs font-semibold text-neutral-800 mb-1">
+                  Fest Association
                 </label>
                 <select
                   value={festId}
                   onChange={(e) => setFestId(e.target.value)}
-                  className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2.5 text-xs sm:text-sm text-[#2B1B17] focus:border-[#B3202A] focus:outline-none cursor-pointer"
+                  className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none cursor-pointer"
                 >
                   <option value="">None (standalone)</option>
                   {activeFests.map((f) => (
@@ -488,77 +479,77 @@ export default function EventFormModal({
           </div>
 
           {/* Date, Start Time, End Time */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-[#7A6A62]" /> Date <span className="text-[#B3202A]">*</span>
+              <label className="block text-xs font-semibold text-neutral-800 mb-1 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-neutral-500" /> Date <span className="text-[#A4161A]">*</span>
               </label>
               <input
                 type="date"
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2 text-xs sm:text-sm text-[#2B1B17] focus:border-[#B3202A] focus:outline-none"
+                className="w-full rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-[#7A6A62]" /> Start Time <span className="text-[#B3202A]">*</span>
+              <label className="block text-xs font-semibold text-neutral-800 mb-1 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-neutral-500" /> Start Time <span className="text-[#A4161A]">*</span>
               </label>
               <input
                 type="time"
                 required
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2 text-xs sm:text-sm text-[#2B1B17] focus:border-[#B3202A] focus:outline-none"
+                className="w-full rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-[#7A6A62]" /> End Time <span className="text-[#B3202A]">*</span>
+              <label className="block text-xs font-semibold text-neutral-800 mb-1 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-neutral-500" /> End Time <span className="text-[#A4161A]">*</span>
               </label>
               <input
                 type="time"
                 required
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2 text-xs sm:text-sm text-[#2B1B17] focus:border-[#B3202A] focus:outline-none"
+                className="w-full rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none"
               />
             </div>
           </div>
 
-          {/* Hall's Existing Approved Bookings on that Date */}
-          <div className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-4 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-[#2B1B17] uppercase tracking-wider">
+          {/* Hall's Existing Approved Bookings */}
+          <div className="rounded border border-neutral-200 bg-neutral-50 p-3 space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-neutral-800">
               <span className="flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-[#7A6A62]" />
-                Approved Bookings on {date || 'Selected Date'}
+                <Building2 className="h-3.5 w-3.5 text-neutral-500" />
+                Bookings on {date || 'Selected Date'}
               </span>
-              <span className="text-[11px] font-normal text-[#7A6A62]">
+              <span className="text-[11px] font-normal text-neutral-500">
                 {halls.find((h) => h.id === hallId)?.name}
               </span>
             </div>
 
             {loadingBookings ? (
-              <div className="text-xs text-[#7A6A62] italic">Checking venue availability...</div>
+              <div className="text-xs text-neutral-500 italic">Checking venue availability...</div>
             ) : hallBookings.length === 0 ? (
-              <div className="flex items-center gap-2 text-xs text-[#15803D] font-semibold">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                No approved bookings on this date. Hall is completely open!
+                No existing bookings on this date.
               </div>
             ) : (
-              <div className="space-y-1.5 pt-1">
+              <div className="space-y-1 pt-1">
                 {hallBookings.map((b, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between rounded-lg border border-[#FECACA] bg-[#FEE2E2] px-3 py-1.5 text-xs"
+                    className="flex items-center justify-between rounded border border-red-200 bg-red-50 px-2.5 py-1 text-xs"
                   >
-                    <span className="font-bold text-[#7F1D1D] truncate max-w-[280px]">
+                    <span className="font-medium text-[#991B1B] truncate max-w-[260px]">
                       {b.title}
                     </span>
-                    <span className="font-mono text-[#7F1D1D] text-[11px]">
+                    <span className="font-mono text-[#991B1B] text-[11px]">
                       {formatBookingTime(b.start_time)} – {formatBookingTime(b.end_time)}
                     </span>
                   </div>
@@ -568,10 +559,10 @@ export default function EventFormModal({
           </div>
 
           {/* Volunteers Needed & External Registration Link */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 text-[#7A6A62]" /> Volunteers Needed
+              <label className="block text-xs font-semibold text-neutral-800 mb-1 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-neutral-500" /> Volunteers Needed
               </label>
               <input
                 type="number"
@@ -579,33 +570,33 @@ export default function EventFormModal({
                 value={volunteersNeeded}
                 onChange={(e) => setVolunteersNeeded(Math.max(0, parseInt(e.target.value, 10) || 0))}
                 placeholder="0"
-                className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2.5 text-xs sm:text-sm text-[#2B1B17] placeholder:text-[#A3938B] focus:border-[#B3202A] focus:outline-none"
+                className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-                <LinkIcon className="h-3.5 w-3.5 text-[#7A6A62]" /> External Registration Link (Optional)
+              <label className="block text-xs font-semibold text-neutral-800 mb-1 flex items-center gap-1.5">
+                <LinkIcon className="h-3.5 w-3.5 text-neutral-500" /> External Registration URL (Optional)
               </label>
               <input
                 type="url"
                 value={registrationLink}
                 onChange={(e) => setRegistrationLink(e.target.value)}
-                placeholder="https://forms.google.com/... or https://unstop.com/..."
-                className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] px-3.5 py-2.5 text-xs sm:text-sm text-[#2B1B17] placeholder:text-[#A3938B] focus:border-[#B3202A] focus:outline-none"
+                placeholder="https://forms.google.com/..."
+                className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none"
               />
             </div>
           </div>
 
-          {/* Poster Upload (Supabase Storage 'event-posters' bucket) */}
+          {/* Poster Upload */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#2B1B17] mb-1.5 flex items-center gap-1.5">
-              <ImageIcon className="h-3.5 w-3.5 text-[#7A6A62]" /> Event Poster
+            <label className="block text-xs font-semibold text-neutral-800 mb-1 flex items-center gap-1.5">
+              <ImageIcon className="h-3.5 w-3.5 text-neutral-500" /> Event Poster
             </label>
 
-            <div className="flex flex-col sm:flex-row items-start gap-4">
+            <div className="flex flex-col sm:flex-row items-start gap-3">
               {posterUrl ? (
-                <div className="relative group rounded-xl overflow-hidden border border-[#EADFD6] w-36 h-36 shrink-0 bg-[#FFFAF5]">
+                <div className="relative rounded overflow-hidden border border-neutral-300 w-32 h-32 shrink-0 bg-neutral-100">
                   <img
                     src={posterUrl}
                     alt="Event Poster Preview"
@@ -614,22 +605,22 @@ export default function EventFormModal({
                   <button
                     type="button"
                     onClick={() => setPosterUrl(null)}
-                    className="absolute top-1.5 right-1.5 rounded-full bg-black/80 p-1 text-white hover:bg-black transition-colors cursor-pointer"
+                    className="absolute top-1 right-1 rounded bg-black/75 p-1 text-white hover:bg-black transition-colors cursor-pointer"
                     title="Remove poster"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 </div>
               ) : (
                 <label
                   htmlFor={fileInputId}
-                  className="flex flex-col items-center justify-center w-full sm:w-48 h-36 border-2 border-dashed border-[#EADFD6] rounded-xl cursor-pointer bg-[#FFFAF5] hover:bg-[#FAF0F0] transition-colors p-4 text-center"
+                  className="flex flex-col items-center justify-center w-full sm:w-44 h-32 border border-dashed border-neutral-300 rounded cursor-pointer bg-neutral-50 hover:bg-neutral-100 transition-colors p-3 text-center"
                 >
-                  <UploadCloud className="h-8 w-8 text-[#B3202A] mb-1.5" />
-                  <span className="text-xs font-bold text-[#2B1B17]">
+                  <UploadCloud className="h-6 w-6 text-[#A4161A] mb-1" />
+                  <span className="text-xs font-medium text-neutral-800">
                     {uploadingPoster ? 'Uploading...' : 'Upload Poster'}
                   </span>
-                  <span className="text-[10px] text-[#7A6A62] mt-0.5">PNG, JPG, WebP</span>
+                  <span className="text-[10px] text-neutral-500 mt-0.5">Max 5MB (PNG/JPG)</span>
                   <input
                     id={fileInputId}
                     type="file"
@@ -641,13 +632,12 @@ export default function EventFormModal({
                 </label>
               )}
 
-              <div className="text-xs text-[#7A6A62] space-y-1.5">
+              <div className="text-xs text-neutral-500 space-y-1">
                 <p>
-                  Upload high-resolution event banners. Uploads are stored in public Supabase
-                  Storage bucket <code className="font-mono text-[#B3202A]">event-posters</code>.
+                  Poster images are hosted in Supabase Storage <code className="font-mono text-neutral-700">event-posters</code>.
                 </p>
-                <p className="text-[11px] text-[#A3938B]">
-                  Posters will be displayed on the student event cards and portal feeds.
+                <p className="text-[11px] text-neutral-400">
+                  Displayed on the event list and student passes.
                 </p>
               </div>
             </div>
@@ -655,12 +645,12 @@ export default function EventFormModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-[#EADFD6] bg-[#FFFAF5] px-6 py-4">
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-2 border-t border-neutral-200 bg-neutral-50 px-6 py-3.5">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="w-full sm:w-auto rounded-xl border border-[#EADFD6] bg-white px-4 py-2.5 text-xs font-semibold text-[#7A6A62] shadow-xs hover:bg-[#FFFAF5] transition-colors cursor-pointer"
+            className="w-full sm:w-auto rounded border border-neutral-300 bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -669,7 +659,7 @@ export default function EventFormModal({
             type="button"
             disabled={saving || uploadingPoster}
             onClick={() => handleSave('draft')}
-            className="w-full sm:w-auto rounded-xl border border-[#EADFD6] bg-white px-5 py-2.5 text-xs font-bold text-[#2B1B17] shadow-xs hover:bg-[#FAF0F0] transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto rounded border border-neutral-300 bg-white px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors disabled:opacity-50 cursor-pointer"
           >
             {saving ? 'Saving...' : 'Save Draft'}
           </button>
@@ -678,10 +668,10 @@ export default function EventFormModal({
             type="button"
             disabled={saving || uploadingPoster}
             onClick={() => handleSave('submitted')}
-            className="w-full sm:w-auto rounded-xl bg-[#B3202A] px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+            className="w-full sm:w-auto rounded bg-[#A4161A] px-5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             {saving ? (
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
             ) : (
               <>
                 <UploadCloud className="h-3.5 w-3.5" />

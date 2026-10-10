@@ -13,7 +13,6 @@ import {
   CheckCircle,
   Building2,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
 
 const DAY_START_HOUR = 8; // 8:00 AM
@@ -225,122 +224,118 @@ function HallsContent() {
   const totalPendingCount = bookings.filter((b) => b.status === 'submitted').length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       {/* Header & Date Selector */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#EADFD6] pb-6">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A24B]/30 bg-[#FDF8ED] px-3 py-1 text-xs font-bold text-[#A07C28] mb-2">
-            <Building2 className="h-3.5 w-3.5" />
-            Public Hall Schedule
+      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+              Campus Hall Availability
+            </h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              Real-time schedule for campus auditoriums and seminar halls.
+            </p>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-extrabold tracking-tight text-[#2B1B17]">
-            Campus Hall Availability
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[#7A6A62]">
-            Real-time clash-checked schedule for all auditoriums and seminar halls
-          </p>
-        </div>
 
-        {/* Date Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-xl border border-[#EADFD6] bg-[#FFFFFF] p-1 shadow-xs">
-            <button
-              onClick={() => handleDateChange(-1)}
-              className="rounded-lg p-2 text-[#7A6A62] hover:bg-[#FFFAF5] hover:text-[#B3202A] transition-colors cursor-pointer"
-              title="Previous Day"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+          {/* Date Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-md border border-neutral-300 bg-white p-1">
+              <button
+                onClick={() => handleDateChange(-1)}
+                className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
+                title="Previous Day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
 
-            <div className="flex items-center gap-2 px-3 py-1">
-              <CalendarIcon className="h-4 w-4 text-[#B3202A]" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent text-xs sm:text-sm font-bold text-[#2B1B17] focus:outline-none cursor-pointer"
-              />
+              <div className="flex items-center gap-2 px-2.5 py-0.5">
+                <CalendarIcon className="h-3.5 w-3.5 text-[#A4161A]" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-transparent text-xs sm:text-sm font-semibold text-neutral-900 focus:outline-none cursor-pointer"
+                />
+              </div>
+
+              <button
+                onClick={() => handleDateChange(1)}
+                className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
+                title="Next Day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
 
             <button
-              onClick={() => handleDateChange(1)}
-              className="rounded-lg p-2 text-[#7A6A62] hover:bg-[#FFFAF5] hover:text-[#B3202A] transition-colors cursor-pointer"
-              title="Next Day"
+              onClick={handleSetToday}
+              className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
             >
-              <ChevronRight className="h-4 w-4" />
+              Today
+            </button>
+
+            <button
+              onClick={() => fetchData(false)}
+              disabled={refreshing}
+              className="rounded-md border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
+              title="Refresh availability"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
-
-          <button
-            onClick={handleSetToday}
-            className="rounded-xl border border-[#EADFD6] bg-[#FFFFFF] px-3.5 py-2 text-xs font-bold text-[#2B1B17] shadow-xs hover:border-[#B3202A] hover:text-[#B3202A] hover:bg-[#FAF0F0] transition-colors cursor-pointer"
-          >
-            Today
-          </button>
-
-          <button
-            onClick={() => fetchData(false)}
-            disabled={refreshing}
-            className="rounded-xl border border-[#EADFD6] bg-[#FFFFFF] p-2 text-[#7A6A62] shadow-xs hover:border-[#B3202A] hover:text-[#B3202A] transition-colors cursor-pointer"
-            title="Refresh availability"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
         </div>
       </div>
 
       {/* Date banner & Color Legend */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl bg-[#2B1B17] p-5 text-white shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-md border border-neutral-200 bg-[#F5F5F5] p-4 text-neutral-900">
         <div>
-          <div className="text-[11px] uppercase tracking-widest text-[#E5C378] font-mono font-semibold">
-            Hall Timeline For
-          </div>
-          <div className="font-serif text-xl font-bold mt-0.5">{formattedDateTitle}</div>
+          <div className="text-xs text-neutral-500 font-medium">Selected Date</div>
+          <div className="text-base font-bold text-neutral-900 mt-0.5">{formattedDateTitle}</div>
         </div>
 
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-4 text-xs">
-          {/* Distinct Crimson for Booked */}
+          {/* Distinct Dark Crimson for Booked */}
           <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-[#681116] ring-2 ring-[#FECACA]"></span>
-            <span className="text-white/90 font-medium">Booked (Approved Event)</span>
+            <span className="h-3 w-3 rounded bg-[#7F1D1D]"></span>
+            <span className="text-neutral-700 font-medium">Booked (Approved)</span>
           </div>
           {/* Amber for Pending */}
           <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-[#D97706] ring-2 ring-[#FDE68A]"></span>
-            <span className="text-white/90 font-medium">Pending Review (Submitted)</span>
+            <span className="h-3 w-3 rounded bg-[#D97706]"></span>
+            <span className="text-neutral-700 font-medium">Pending Review</span>
           </div>
-          {/* Green / Dashed for Free */}
+          {/* Green for Free */}
           <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full border border-dashed border-[#BBF7D0] bg-[#15803D]"></span>
-            <span className="text-white/90 font-medium">Free Availability</span>
+            <span className="h-3 w-3 rounded border border-emerald-600 bg-emerald-100"></span>
+            <span className="text-neutral-700 font-medium">Available</span>
           </div>
         </div>
       </div>
 
-      {/* Summary Stat Pills */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-[#EADFD6] bg-[#FFFFFF] p-4 shadow-xs">
-          <div className="text-xs font-bold text-[#7A6A62] uppercase tracking-wider">Campus Venues</div>
-          <div className="mt-1 font-serif text-2xl font-bold text-[#2B1B17]">
-            {halls.length} Halls
+      {/* Summary Stat Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-md border border-neutral-200 bg-white p-3.5 shadow-xs">
+          <div className="text-xs text-neutral-500 font-medium">Campus Venues</div>
+          <div className="mt-1 text-xl font-bold text-neutral-900">
+            {halls.length}
           </div>
         </div>
-        <div className="rounded-2xl border border-[#EADFD6] bg-[#FFFFFF] p-4 shadow-xs">
-          <div className="text-xs font-bold text-[#7A6A62] uppercase tracking-wider">Total Bookings Today</div>
-          <div className="mt-1 font-serif text-2xl font-bold text-[#2B1B17]">
+        <div className="rounded-md border border-neutral-200 bg-white p-3.5 shadow-xs">
+          <div className="text-xs text-neutral-500 font-medium">Total Bookings Today</div>
+          <div className="mt-1 text-xl font-bold text-neutral-900">
             {bookings.length}
           </div>
         </div>
-        <div className="rounded-2xl border border-[#FECACA] bg-[#FEE2E2] p-4 shadow-xs">
-          <div className="text-xs font-bold text-[#7F1D1D] uppercase tracking-wider">Approved Events</div>
-          <div className="mt-1 font-serif text-2xl font-bold text-[#7F1D1D]">
+        <div className="rounded-md border border-red-200 bg-red-50 p-3.5 shadow-xs">
+          <div className="text-xs text-[#991B1B] font-medium">Approved Events</div>
+          <div className="mt-1 text-xl font-bold text-[#991B1B]">
             {totalBookedCount}
           </div>
         </div>
-        <div className="rounded-2xl border border-[#FDE68A] bg-[#FEF3C7] p-4 shadow-xs">
-          <div className="text-xs font-bold text-[#B45309] uppercase tracking-wider">Pending Review</div>
-          <div className="mt-1 font-serif text-2xl font-bold text-[#B45309]">
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3.5 shadow-xs">
+          <div className="text-xs text-amber-800 font-medium">Pending Review</div>
+          <div className="mt-1 text-xl font-bold text-amber-900">
             {totalPendingCount}
           </div>
         </div>
@@ -348,24 +343,24 @@ function HallsContent() {
 
       {/* Halls Availability List */}
       {loading ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-44 w-full animate-pulse rounded-2xl bg-[#EADFD6]/40"
+              className="h-40 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200"
             />
           ))}
         </div>
       ) : halls.length === 0 ? (
-        <div className="rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] p-12 text-center shadow-xs">
-          <Building2 className="mx-auto h-12 w-12 text-[#D5C5B8]" />
-          <h3 className="mt-3 font-serif text-lg font-bold text-[#2B1B17]">No Halls Found</h3>
-          <p className="mt-1 text-xs text-[#7A6A62]">
-            Run the database seed script to populate halls and test bookings.
+        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
+          <Building2 className="mx-auto h-10 w-10 text-neutral-300" />
+          <h3 className="mt-3 text-base font-semibold text-neutral-900">No Halls Found</h3>
+          <p className="mt-1 text-xs text-neutral-500">
+            No hall records available for scheduling.
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {halls.map((hall) => {
             const hallBookings = bookingsByHall.get(hall.id) || [];
             const freeSlots = getFreeTimeSlots(hallBookings);
@@ -373,52 +368,52 @@ function HallsContent() {
             return (
               <div
                 key={hall.id}
-                className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-[#FFFFFF] shadow-xs transition-all hover:border-[#B3202A]/40"
+                className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
               >
                 {/* Hall Header */}
-                <div className="border-b border-[#EADFD6] bg-[#FFFAF5] px-6 py-4">
+                <div className="border-b border-neutral-200 bg-neutral-50 px-5 py-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#B3202A] text-white shadow-xs">
-                        <Building2 className="h-5 w-5" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded bg-[#A4161A] text-white">
+                        <Building2 className="h-4 w-4" />
                       </div>
                       <div>
-                        <h2 className="font-serif text-lg font-bold text-[#2B1B17]">
+                        <h2 className="text-base font-bold text-neutral-900">
                           {hall.name}
                         </h2>
                         {hall.location && (
-                          <div className="flex items-center gap-1 text-xs text-[#7A6A62]">
-                            <MapPin className="h-3.5 w-3.5 text-[#B3202A]" />
+                          <div className="flex items-center gap-1 text-xs text-neutral-500">
+                            <MapPin className="h-3 w-3 text-[#A4161A]" />
                             {hall.location}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5">
-                      <div className="inline-flex items-center gap-1.5 rounded-lg border border-[#EADFD6] bg-[#FFFFFF] px-3 py-1 text-xs font-bold text-[#2B1B17]">
-                        <Users className="h-3.5 w-3.5 text-[#7A6A62]" />
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700">
+                        <Users className="h-3.5 w-3.5 text-neutral-400" />
                         {hall.capacity.toLocaleString()} Seats
                       </div>
 
                       {hallBookings.length === 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-[#BBF7D0] bg-[#DCFCE7] px-3 py-1 text-xs font-bold text-[#15803D]">
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          Full Day Free
+                        <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                          <CheckCircle className="h-3 w-3 text-emerald-700" />
+                          Full Day Available
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-[#EADFD6] bg-[#FFFFFF] px-3 py-1 text-xs font-bold text-[#7A6A62]">
-                          {hallBookings.length} {hallBookings.length === 1 ? 'Slot' : 'Slots'} Occupied
+                        <span className="inline-flex items-center gap-1 rounded border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600">
+                          {hallBookings.length} {hallBookings.length === 1 ? 'Booking' : 'Bookings'}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-5 space-y-4">
                   {/* Visual Day Timeline Bar (8 AM - 8 PM) */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-[#7A6A62] uppercase tracking-wider font-mono">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-medium text-neutral-500 font-mono">
                       <span>8:00 AM</span>
                       <span className="hidden sm:inline">11:00 AM</span>
                       <span>2:00 PM</span>
@@ -426,14 +421,14 @@ function HallsContent() {
                       <span>8:00 PM</span>
                     </div>
 
-                    <div className="relative h-10 w-full overflow-hidden rounded-xl border border-[#EADFD6] bg-[#FFFAF5]">
+                    <div className="relative h-8 w-full overflow-hidden rounded border border-neutral-300 bg-neutral-50">
                       {/* Hour markers */}
-                      <div className="absolute inset-0 grid grid-cols-12 pointer-events-none opacity-20">
+                      <div className="absolute inset-0 grid grid-cols-12 pointer-events-none opacity-25">
                         {Array.from({ length: 12 }).map((_, idx) => (
                           <div
                             key={idx}
-                            className={`h-full border-r border-[#7A6A62] ${
-                              idx % 3 === 0 ? 'border-[#2B1B17]' : ''
+                            className={`h-full border-r border-neutral-400 ${
+                              idx % 3 === 0 ? 'border-neutral-600' : ''
                             }`}
                           />
                         ))}
@@ -448,14 +443,14 @@ function HallsContent() {
                           <div
                             key={idx}
                             style={{ left, width }}
-                            className={`absolute top-1 bottom-1 rounded-lg px-2 flex items-center shadow-xs overflow-hidden transition-transform hover:z-10 hover:scale-[1.01] cursor-pointer ${
+                            className={`absolute top-0.5 bottom-0.5 rounded px-2 flex items-center overflow-hidden cursor-pointer ${
                               isApproved
-                                ? 'bg-[#681116] text-white ring-1 ring-[#FECACA]'
-                                : 'bg-[#D97706] text-white ring-1 ring-[#FDE68A]'
+                                ? 'bg-[#7F1D1D] text-white'
+                                : 'bg-[#D97706] text-white'
                             }`}
                             title={`${b.title} (${b.status}): ${formatTime(b.start_time)} - ${formatTime(b.end_time)}`}
                           >
-                            <span className="truncate text-xs font-bold tracking-tight">
+                            <span className="truncate text-xs font-medium">
                               {b.title}
                             </span>
                           </div>
@@ -465,23 +460,23 @@ function HallsContent() {
                   </div>
 
                   {/* Free time slots & Bookings detailed list */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                     {/* Free Slots */}
-                    <div className="rounded-xl border border-[#BBF7D0] bg-[#DCFCE7]/30 p-4 space-y-2">
-                      <div className="font-bold text-[#15803D] uppercase tracking-wider flex items-center gap-1.5 text-[11px]">
-                        <Clock className="h-3.5 w-3.5" />
-                        Available Windows (Free for proposals)
+                    <div className="rounded border border-emerald-200 bg-emerald-50/50 p-3 space-y-1.5">
+                      <div className="font-semibold text-emerald-900 flex items-center gap-1.5 text-[11px]">
+                        <Clock className="h-3 w-3 text-emerald-700" />
+                        Available Windows
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         {freeSlots.map((slot, sIdx) => (
                           <div
                             key={sIdx}
-                            className="flex items-center justify-between text-[#15803D] font-mono text-xs"
+                            className="flex items-center justify-between text-emerald-800 font-mono text-xs"
                           >
                             <span>
                               {slot.start} – {slot.end}
                             </span>
-                            <span className="font-bold text-[11px] bg-[#DCFCE7] px-2 py-0.5 rounded-md border border-[#BBF7D0]">
+                            <span className="font-medium text-[11px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-900">
                               {slot.duration}
                             </span>
                           </div>
@@ -490,33 +485,33 @@ function HallsContent() {
                     </div>
 
                     {/* Occupied List */}
-                    <div className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-4 space-y-2">
-                      <div className="font-bold text-[#7A6A62] uppercase tracking-wider flex items-center gap-1.5 text-[11px]">
-                        <Building2 className="h-3.5 w-3.5" />
+                    <div className="rounded border border-neutral-200 bg-neutral-50 p-3 space-y-1.5">
+                      <div className="font-semibold text-neutral-800 flex items-center gap-1.5 text-[11px]">
+                        <Building2 className="h-3 w-3 text-neutral-500" />
                         Scheduled Bookings ({hallBookings.length})
                       </div>
                       {hallBookings.length === 0 ? (
-                        <div className="text-[#7A6A62] italic text-xs py-1">
-                          No events booked for this hall on this date.
+                        <div className="text-neutral-500 italic text-xs py-1">
+                          No events scheduled for this date.
                         </div>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {hallBookings.map((b, bIdx) => (
                             <div
                               key={bIdx}
-                              className="flex items-center justify-between border-b border-[#EADFD6] pb-1.5 last:border-0 last:pb-0"
+                              className="flex items-center justify-between border-b border-neutral-200 pb-1 last:border-0 last:pb-0"
                             >
                               <div>
-                                <div className="font-bold text-[#2B1B17] line-clamp-1">{b.title}</div>
-                                <div className="text-[11px] text-[#7A6A62] font-mono">
+                                <div className="font-medium text-neutral-900 line-clamp-1">{b.title}</div>
+                                <div className="text-[11px] text-neutral-500 font-mono">
                                   {formatTime(b.start_time)} – {formatTime(b.end_time)}
                                 </div>
                               </div>
                               <span
-                                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                                   b.status === 'approved'
-                                    ? 'bg-[#FEE2E2] text-[#7F1D1D] border border-[#FECACA]'
-                                    : 'bg-[#FEF3C7] text-[#B45309] border border-[#FDE68A]'
+                                    ? 'bg-red-100 text-[#991B1B] border border-red-200'
+                                    : 'bg-amber-100 text-amber-900 border border-amber-200'
                                 }`}
                               >
                                 {b.status}
@@ -541,11 +536,11 @@ export default function HallsPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-7xl px-4 py-12 space-y-6">
-          <div className="h-24 w-full animate-pulse rounded-2xl bg-[#EADFD6]/40" />
-          <div className="space-y-4">
+        <div className="mx-auto max-w-7xl px-4 py-8 space-y-4">
+          <div className="h-20 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
+          <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-44 w-full animate-pulse rounded-2xl bg-[#EADFD6]/40" />
+              <div key={i} className="h-40 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
             ))}
           </div>
         </div>

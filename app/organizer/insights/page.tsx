@@ -19,10 +19,7 @@ import {
   RefreshCw,
   AlertCircle,
   Lightbulb,
-  ShieldCheck,
   Loader2,
-  ExternalLink,
-  Layers,
   ChevronRight,
 } from 'lucide-react';
 
@@ -100,7 +97,6 @@ export default function OrganizerClubInsightsPage() {
       const eventsList = (pastEvents as CampusEvent[]) || [];
       const eventIds = eventsList.map((e) => e.id);
 
-      // If no past events yet
       if (eventIds.length === 0) {
         setStats({
           totalEvents: 0,
@@ -136,7 +132,6 @@ export default function OrganizerClubInsightsPage() {
       const regs = regsRes.data || [];
       const revs = reviewsRes.data || [];
 
-      // Compute stats
       const confirmedRegs = regs.filter((r) => r.status === 'confirmed');
       const attendedRegs = confirmedRegs.filter((r) => r.checked_in_at !== null);
 
@@ -179,7 +174,7 @@ export default function OrganizerClubInsightsPage() {
         slotMap[slotKey].total += evRegs.length;
         slotMap[slotKey].attended += evAtt.length;
 
-        const hallName = ev.halls?.name || 'Campus Venue';
+        const hallName = ev.halls?.name || 'Venue';
         if (!hallMap[ev.hall_id]) {
           hallMap[ev.hall_id] = { total: 0, attended: 0, count: 0, name: hallName };
         }
@@ -280,19 +275,19 @@ export default function OrganizerClubInsightsPage() {
     profile?.club_name || profile?.department || profile?.name || profile?.email?.split('@')[0] || 'Organizer';
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       {/* Header and Back navigation */}
       <div className="flex items-center justify-between">
         <Link
           href="/organizer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Events Dashboard
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
         </Link>
 
         <button
           onClick={loadData}
-          className="rounded-xl border border-zinc-200 bg-white p-2.5 text-zinc-600 shadow-xs hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="rounded border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
           title="Refresh analytics"
         >
           <RefreshCw className="h-4 w-4" />
@@ -300,43 +295,40 @@ export default function OrganizerClubInsightsPage() {
       </div>
 
       {/* Hero Header */}
-      <div className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-gradient-to-br from-[#FFFAF5] via-white to-[#FFFAF5]/50 p-6 sm:p-8 shadow-xs relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#B3202A] via-[#C9A24B] to-[#B3202A]" />
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A24B]/40 bg-[#FFFAF5] px-3 py-1 text-xs font-semibold text-[#8E1A22]">
-            <TrendingUp className="h-3.5 w-3.5 text-[#C9A24B]" />
-            Club & Department Level Intelligence
-          </div>
-          <h1 className="font-serif text-3xl font-bold tracking-tight text-[#2B1B17]">
-            {orgName} Analytics & Planning
-          </h1>
-          <p className="text-sm text-[#7A6A62]">
-            Historical attendance trends, timing/hall performance, and Gemini AI overbooking strategies
-          </p>
+      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs space-y-1">
+        <div className="inline-flex items-center gap-1.5 rounded bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
+          <TrendingUp className="h-3.5 w-3.5 text-[#A4161A]" />
+          Analytics &amp; Attendance Planning
         </div>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+          {orgName} Analytics
+        </h1>
+        <p className="text-xs text-neutral-500">
+          Attendance rates, venue efficiency, and Gemini AI planning advice.
+        </p>
       </div>
 
       {loading ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl bg-[#EADFD6]/50" />
+              <div key={i} className="h-20 animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
             ))}
           </div>
         </div>
       ) : errorMsg ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-xs text-red-900 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-[#8E1A22] shrink-0" />
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-xs text-[#991B1B] flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
           <span>{errorMsg}</span>
         </div>
       ) : stats && stats.totalEvents === 0 ? (
-        <div className="rounded-2xl border border-[#EADFD6] bg-white p-12 text-center">
-          <Calendar className="mx-auto h-12 w-12 text-[#EADFD6]" />
-          <h3 className="mt-3 font-serif text-base font-bold text-[#2B1B17]">
+        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center">
+          <Calendar className="mx-auto h-10 w-10 text-neutral-300" />
+          <h3 className="mt-3 text-base font-semibold text-neutral-900">
             No past events to analyze yet
           </h3>
-          <p className="mt-1 text-sm text-[#7A6A62]">
-            Host and scan attendees at events to unlock cumulative insights and AI planning advice.
+          <p className="mt-1 text-xs text-neutral-500">
+            Host and check-in attendees at campus events to generate cumulative analytics.
           </p>
         </div>
       ) : (
@@ -344,187 +336,180 @@ export default function OrganizerClubInsightsPage() {
           <>
             {/* Cumulative Metrics Grid */}
             <div>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-[#7A6A62]">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                   Cumulative Historical Performance (SQL Ground-Truth)
                 </h2>
-                <span className="text-xs text-[#7A6A62] font-mono">
+                <span className="text-xs text-neutral-400 font-mono">
                   {stats.totalEvents} Past Approved Events
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="rounded-2xl border border-[#EADFD6] bg-white p-5 shadow-xs">
-                  <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-                    <span className="text-xs font-semibold">Total Registrations</span>
-                    <Users className="h-4 w-4 text-sky-600" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
+                  <div className="flex items-center justify-between text-neutral-500 mb-1">
+                    <span className="text-xs font-medium">Registrations</span>
+                    <Users className="h-3.5 w-3.5 text-neutral-400" />
                   </div>
-                  <div className="font-serif text-2xl font-bold text-[#2B1B17]">
+                  <div className="text-2xl font-bold text-neutral-900">
                     {stats.totalRegistered}
                   </div>
-                  <div className="text-[11px] text-[#7A6A62]">Cumulative passes issued</div>
+                  <div className="text-[11px] text-neutral-400">Total passes issued</div>
                 </div>
 
-                <div className="rounded-2xl border border-[#EADFD6] bg-white p-5 shadow-xs">
-                  <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-                    <span className="text-xs font-semibold">Verified Turnout</span>
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
+                  <div className="flex items-center justify-between text-neutral-500 mb-1">
+                    <span className="text-xs font-medium">Turnout</span>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                   </div>
-                  <div className="font-serif text-2xl font-bold text-emerald-800">
+                  <div className="text-2xl font-bold text-emerald-700">
                     {stats.totalAttended}
                   </div>
-                  <div className="text-[11px] text-[#7A6A62]">
+                  <div className="text-[11px] text-neutral-400">
                     {stats.totalRegistered > 0
-                      ? `${Math.round((stats.totalAttended / stats.totalRegistered) * 100)}% overall turnout`
+                      ? `${Math.round((stats.totalAttended / stats.totalRegistered) * 100)}% turnout rate`
                       : 'N/A'}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[#EADFD6] bg-white p-5 shadow-xs">
-                  <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-                    <span className="text-xs font-semibold">Historical No-Show</span>
-                    <UserX className="h-4 w-4 text-[#8E1A22]" />
+                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
+                  <div className="flex items-center justify-between text-neutral-500 mb-1">
+                    <span className="text-xs font-medium">No-Show Rate</span>
+                    <UserX className="h-3.5 w-3.5 text-[#991B1B]" />
                   </div>
-                  <div className="font-serif text-2xl font-bold text-[#8E1A22]">
+                  <div className="text-2xl font-bold text-[#991B1B]">
                     {stats.overallNoShowRate}%
                   </div>
-                  <div className="text-[11px] text-[#7A6A62]">
-                    {stats.totalRegistered - stats.totalAttended} total absentees
+                  <div className="text-[11px] text-neutral-400">
+                    {stats.totalRegistered - stats.totalAttended} absentees
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[#EADFD6] bg-white p-5 shadow-xs">
-                  <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-                    <span className="text-xs font-semibold">Club Rating</span>
-                    <Star className="h-4 w-4 fill-[#C9A24B] text-[#C9A24B]" />
+                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
+                  <div className="flex items-center justify-between text-neutral-500 mb-1">
+                    <span className="text-xs font-medium">Avg Review</span>
+                    <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
                   </div>
-                  <div className="font-serif text-2xl font-bold text-[#C9A24B]">
+                  <div className="text-2xl font-bold text-neutral-900">
                     {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : 'N/A'}
                   </div>
-                  <div className="text-[11px] text-[#7A6A62]">Average student review</div>
+                  <div className="text-[11px] text-neutral-400">Out of 5.0</div>
                 </div>
               </div>
             </div>
 
             {/* AI Strategic Planning Advice (Gemini) */}
-            <div className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-white shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EADFD6] p-6 bg-[#FFFAF5]">
+            <div className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 p-5 bg-neutral-50">
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#B3202A] text-white shadow-xs">
-                      <Sparkles className="h-4 w-4" />
+                    <div className="flex h-6 w-6 items-center justify-center rounded bg-[#A4161A] text-white">
+                      <Sparkles className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="font-serif text-lg font-bold text-[#2B1B17]">
-                      Gemini Strategic Planning & Overbooking Advice
+                    <h3 className="text-base font-bold text-neutral-900">
+                      Gemini Planning &amp; Overbooking Advice
                     </h3>
                   </div>
-                  <p className="text-xs text-[#7A6A62] mt-1">
-                    Custom recommendations generated by Gemini from your historical {stats.overallNoShowRate}% no-show rate and turnouts
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    Calculates overbooking buffers from your {stats.overallNoShowRate}% historical no-show rate
                   </p>
                 </div>
 
                 <button
                   onClick={handleGenerateAdvice}
                   disabled={generating}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#B3202A] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] disabled:opacity-50 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] disabled:opacity-50 transition-colors cursor-pointer"
                 >
                   {generating ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Consulting Gemini...
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Analyzing...
                     </>
                   ) : cachedAdvice ? (
                     <>
-                      <RefreshCw className="h-4 w-4" />
-                      Regenerate Planning Advice
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Regenerate
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4" />
-                      Generate Planning Advice
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Generate Advice
                     </>
                   )}
                 </button>
               </div>
 
               {genError && (
-                <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 flex items-start gap-2.5">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-[#8E1A22] mt-0.5" />
+                <div className="m-4 rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
                   <div>
-                    <span className="font-bold">Gemini API Notice: </span>
+                    <span className="font-semibold">Notice: </span>
                     <span>{genError}</span>
                   </div>
                 </div>
               )}
 
               {!cachedAdvice && !generating && (
-                <div className="p-10 text-center space-y-3">
-                  <Lightbulb className="mx-auto h-10 w-10 text-[#EADFD6]" />
-                  <h4 className="font-serif text-sm font-bold text-[#2B1B17]">
+                <div className="p-8 text-center space-y-2">
+                  <Lightbulb className="mx-auto h-8 w-8 text-neutral-300" />
+                  <h4 className="text-sm font-semibold text-neutral-900">
                     No Planning Advice Generated Yet
                   </h4>
-                  <p className="text-xs text-[#7A6A62] max-w-sm mx-auto">
-                    Click &ldquo;Generate Planning Advice&rdquo; to have Gemini analyze your historical attendance math and suggest overbooking buffers.
+                  <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                    Click &ldquo;Generate Advice&rdquo; to have Gemini evaluate attendance patterns and suggest capacity buffers.
                   </p>
                 </div>
               )}
 
               {cachedAdvice && (
-                <div className="p-6 space-y-6">
-                  <div className="space-y-4">
-                    {/* Executive Summary */}
-                    <div className="rounded-xl border border-[#C9A24B]/40 bg-[#FFFAF5] p-4 text-xs text-[#2B1B17]">
-                      <div className="font-bold text-[#8E1A22] text-sm mb-1 flex items-center gap-1.5">
-                        <TrendingUp className="h-4 w-4 text-[#C9A24B]" />
-                        Executive Assessment
-                      </div>
-                      <p className="leading-relaxed">{cachedAdvice.summary.executive_summary}</p>
+                <div className="p-5 space-y-4">
+                  <div className="rounded border border-neutral-200 bg-neutral-50 p-3.5 text-xs text-neutral-800 space-y-1">
+                    <div className="font-semibold text-neutral-900 text-xs">
+                      Executive Summary
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Overbooking and Turnout Strategy */}
-                      <div className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-5 space-y-2">
-                        <div className="text-xs font-bold text-[#8E1A22] uppercase tracking-wider flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-[#B3202A]" />
-                          Recommended Overbooking Buffer
-                        </div>
-                        <p className="text-xs text-[#2B1B17] leading-relaxed">
-                          {cachedAdvice.summary.turnout_and_overbooking_recommendations}
-                        </p>
-                      </div>
-
-                      {/* Scheduling & Venue Insights */}
-                      <div className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-5 space-y-2">
-                        <div className="text-xs font-bold text-[#8E1A22] uppercase tracking-wider flex items-center gap-1.5">
-                          <Building2 className="h-3.5 w-3.5 text-[#B3202A]" />
-                          Optimal Scheduling & Halls
-                        </div>
-                        <p className="text-xs text-[#2B1B17] leading-relaxed">
-                          {cachedAdvice.summary.preferred_timing_and_venue_insights}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Actionable Improvements List */}
-                    {cachedAdvice.summary.actionable_improvements.length > 0 && (
-                      <div className="rounded-xl border border-[#C9A24B]/40 bg-[#FFFAF5] p-5 space-y-2.5">
-                        <div className="text-xs font-bold text-[#8E1A22] uppercase tracking-wider flex items-center gap-1.5">
-                          <Lightbulb className="h-3.5 w-3.5 text-[#C9A24B]" />
-                          Actionable Operational Checklist
-                        </div>
-                        <ul className="space-y-1.5 text-xs text-[#2B1B17]">
-                          {cachedAdvice.summary.actionable_improvements.map((item, idx) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#C9A24B] shrink-0" />
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    <p className="leading-relaxed">{cachedAdvice.summary.executive_summary}</p>
                   </div>
 
-                  <div className="text-[11px] text-[#7A6A62] text-right pt-2 font-mono border-t border-[#EADFD6]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded border border-neutral-200 bg-white p-3.5 space-y-1.5">
+                      <div className="text-xs font-semibold text-neutral-900 flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-[#A4161A]" />
+                        Overbooking Recommendation
+                      </div>
+                      <p className="text-xs text-neutral-700 leading-relaxed">
+                        {cachedAdvice.summary.turnout_and_overbooking_recommendations}
+                      </p>
+                    </div>
+
+                    <div className="rounded border border-neutral-200 bg-white p-3.5 space-y-1.5">
+                      <div className="text-xs font-semibold text-neutral-900 flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-[#A4161A]" />
+                        Scheduling &amp; Venues
+                      </div>
+                      <p className="text-xs text-neutral-700 leading-relaxed">
+                        {cachedAdvice.summary.preferred_timing_and_venue_insights}
+                      </p>
+                    </div>
+                  </div>
+
+                  {cachedAdvice.summary.actionable_improvements.length > 0 && (
+                    <div className="rounded border border-neutral-200 bg-neutral-50 p-3.5 space-y-2">
+                      <div className="text-xs font-semibold text-neutral-900 flex items-center gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
+                        Operational Checklist
+                      </div>
+                      <ul className="space-y-1 text-xs text-neutral-700">
+                        {cachedAdvice.summary.actionable_improvements.map((item, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="mt-1 h-1 w-1 rounded-full bg-neutral-600 shrink-0" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-neutral-400 text-right font-mono border-t border-neutral-100 pt-2">
                     Generated on {new Date(cachedAdvice.generated_at).toLocaleString()}
                   </div>
                 </div>
@@ -532,28 +517,28 @@ export default function OrganizerClubInsightsPage() {
             </div>
 
             {/* Timing and Venue Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Best Time Slots */}
-              <div className="rounded-2xl border border-[#EADFD6] bg-white p-6 shadow-xs space-y-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-[#B3202A]" />
-                  <h3 className="font-serif text-base font-bold text-[#2B1B17]">
+              <div className="rounded-md border border-neutral-200 bg-white p-5 shadow-xs space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-[#A4161A]" />
+                  <h3 className="text-sm font-bold text-neutral-900">
                     Turnout by Time Slot
                   </h3>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {stats.bestTimeSlots.map((slot, idx) => (
                     <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-[#2B1B17]">{slot.slot}</span>
-                        <span className="font-bold text-[#B3202A]">
-                          {slot.rate}% turnout
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-neutral-800">{slot.slot}</span>
+                        <span className="font-semibold text-neutral-900">
+                          {slot.rate}%
                         </span>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-[#EADFD6]/50 overflow-hidden">
+                      <div className="h-1.5 w-full rounded bg-neutral-100 overflow-hidden">
                         <div
-                          className="h-full bg-[#B3202A] rounded-full transition-all"
+                          className="h-full bg-[#A4161A] rounded"
                           style={{ width: `${slot.rate}%` }}
                         />
                       </div>
@@ -563,28 +548,28 @@ export default function OrganizerClubInsightsPage() {
               </div>
 
               {/* Hall Popularity & Turnout */}
-              <div className="rounded-2xl border border-[#EADFD6] bg-white p-6 shadow-xs space-y-4">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-emerald-700" />
-                  <h3 className="font-serif text-base font-bold text-[#2B1B17]">
-                    Turnout by Venue Hall
+              <div className="rounded-md border border-neutral-200 bg-white p-5 shadow-xs space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="h-4 w-4 text-emerald-700" />
+                  <h3 className="text-sm font-bold text-neutral-900">
+                    Turnout by Venue
                   </h3>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {stats.topHalls.map((hall, idx) => (
                     <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-[#2B1B17]">
-                          {hall.name} <span className="text-[#7A6A62]">({hall.count} events)</span>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-neutral-800">
+                          {hall.name} <span className="text-neutral-400">({hall.count} events)</span>
                         </span>
-                        <span className="font-bold text-emerald-800">
-                          {hall.rate}% turnout
+                        <span className="font-semibold text-emerald-800">
+                          {hall.rate}%
                         </span>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-[#EADFD6]/50 overflow-hidden">
+                      <div className="h-1.5 w-full rounded bg-neutral-100 overflow-hidden">
                         <div
-                          className="h-full bg-emerald-600 rounded-full transition-all"
+                          className="h-full bg-emerald-600 rounded"
                           style={{ width: `${hall.rate}%` }}
                         />
                       </div>
@@ -595,66 +580,66 @@ export default function OrganizerClubInsightsPage() {
             </div>
 
             {/* Past Events Breakdown Table */}
-            <div className="space-y-4">
-              <h3 className="font-serif text-lg font-bold text-[#2B1B17]">
+            <div className="space-y-3">
+              <h3 className="text-base font-bold text-neutral-900">
                 Past Events Performance Breakdown
               </h3>
 
-              <div className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-white shadow-xs">
+              <div className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="border-b border-[#EADFD6] bg-[#FFFAF5] text-[#7A6A62]">
+                    <thead className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
                       <tr>
-                        <th className="px-4 py-3 font-bold">Event Title</th>
-                        <th className="px-4 py-3 font-bold">Venue</th>
-                        <th className="px-4 py-3 font-bold text-center">Registered</th>
-                        <th className="px-4 py-3 font-bold text-center">Attended</th>
-                        <th className="px-4 py-3 font-bold text-center">No-Show %</th>
-                        <th className="px-4 py-3 font-bold text-center">Avg Rating</th>
-                        <th className="px-4 py-3 font-bold text-right">Actions</th>
+                        <th className="px-4 py-2.5 font-semibold">Event Title</th>
+                        <th className="px-4 py-2.5 font-semibold">Venue</th>
+                        <th className="px-4 py-2.5 font-semibold text-center">Registered</th>
+                        <th className="px-4 py-2.5 font-semibold text-center">Attended</th>
+                        <th className="px-4 py-2.5 font-semibold text-center">No-Show %</th>
+                        <th className="px-4 py-2.5 font-semibold text-center">Avg Rating</th>
+                        <th className="px-4 py-2.5 font-semibold text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#EADFD6]">
+                    <tbody className="divide-y divide-neutral-100">
                       {eventRows.map((row) => (
                         <tr
                           key={row.id}
-                          className="hover:bg-[#FFFAF5] transition-colors"
+                          className="hover:bg-neutral-50 transition-colors"
                         >
-                          <td className="px-4 py-3 font-bold text-[#2B1B17]">
+                          <td className="px-4 py-2.5 font-medium text-neutral-900">
                             {row.title}
-                            <div className="text-[11px] text-[#7A6A62] font-normal">
+                            <div className="text-[11px] text-neutral-400 font-normal">
                               {new Date(row.start_time).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
                               })}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-[#7A6A62]">
+                          <td className="px-4 py-2.5 text-neutral-600">
                             {row.hall_name}
                           </td>
-                          <td className="px-4 py-3 text-center font-mono text-[#2B1B17]">
+                          <td className="px-4 py-2.5 text-center font-mono text-neutral-800">
                             {row.registered}
                           </td>
-                          <td className="px-4 py-3 text-center font-mono font-bold text-emerald-800">
+                          <td className="px-4 py-2.5 text-center font-mono font-semibold text-emerald-700">
                             {row.attended}
                           </td>
-                          <td className="px-4 py-3 text-center font-mono font-bold text-[#8E1A22]">
+                          <td className="px-4 py-2.5 text-center font-mono font-semibold text-[#991B1B]">
                             {row.noShowRate}%
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-4 py-2.5 text-center">
                             {row.avgRating > 0 ? (
-                              <span className="inline-flex items-center gap-1 font-bold text-[#C9A24B]">
-                                <Star className="h-3 w-3 fill-[#C9A24B]" />
-                                {row.avgRating.toFixed(1)} ({row.reviewCount})
+                              <span className="inline-flex items-center gap-1 font-semibold text-amber-700">
+                                <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                                {row.avgRating.toFixed(1)}
                               </span>
                             ) : (
-                              <span className="text-[#7A6A62] font-mono">-</span>
+                              <span className="text-neutral-400 font-mono">-</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-2.5 text-right">
                             <Link
                               href={`/organizer/events/${row.id}/insights`}
-                              className="inline-flex items-center gap-1 rounded-lg border border-[#EADFD6] bg-white px-2.5 py-1 text-xs font-semibold text-[#2B1B17] hover:bg-[#FFFAF5] hover:text-[#B3202A] transition-colors"
+                              className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:text-[#A4161A] transition-colors"
                             >
                               Insights <ChevronRight className="h-3 w-3" />
                             </Link>

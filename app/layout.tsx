@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 
@@ -9,15 +9,9 @@ const inter = Inter({
   display: 'swap',
 });
 
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-playfair',
-  display: 'swap',
-});
-
 export const metadata: Metadata = {
-  title: 'Genesis | Campus Events Platform',
-  description: 'Smart campus events, hall booking, clash detection, and student affairs governance.',
+  title: 'Amrita Events | Campus Events Portal',
+  description: 'Amrita Vishwa Vidyapeetham campus events, hall booking, clash prevention, and attendance portal.',
 };
 
 export default function RootLayout({
@@ -26,23 +20,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-[#FFFAF5] text-[#2B1B17]">
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-white text-neutral-900 font-sans">
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
-        <footer className="border-t border-[#EADFD6] bg-[#FFFFFF] py-6 text-center text-xs text-[#7A6A62]">
+        <footer className="border-t border-neutral-200 bg-[#F5F5F5] py-6 text-xs text-neutral-600">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="font-serif font-bold text-[#B3202A] text-sm tracking-wide">GENESIS</span>
-              <span className="text-[#EADFD6]">|</span>
-              <p>© 2026 Campus Events Platform. All rights reserved.</p>
+              <span className="font-bold text-[#A4161A]">Amrita Vishwa Vidyapeetham</span>
+              <span className="text-neutral-300">|</span>
+              <p>Campus Events Portal</p>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="inline-flex items-center gap-1.5 font-medium text-[#7A6A62]">
-                <span className="h-2 w-2 rounded-full bg-[#15803D] animate-pulse"></span>
-                Postgres RLS &amp; Clash Prevention Active
-              </span>
-            </div>
+            <p className="text-neutral-500">© 2026 Amrita Vishwa Vidyapeetham. All rights reserved.</p>
           </div>
         </footer>
       </body>

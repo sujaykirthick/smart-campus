@@ -8,14 +8,11 @@ import type { CampusEvent, Hall, Fest, Registration, AllowedUser, Volunteer } fr
 import {
   Clock,
   MapPin,
-  Sparkles,
-  ExternalLink,
   Users,
   Search,
   Filter,
   CheckCircle2,
   Building2,
-  GraduationCap,
   RefreshCw,
   Archive,
   Layers,
@@ -158,7 +155,7 @@ export default function EventsPage() {
     fetchData();
   }, [fetchData]);
 
-  // Handle Register (Confirmed or Waitlist automatically handled by backend SQL)
+  // Handle Register
   const handleRegister = async (event: CampusEvent) => {
     if (!userProfile) {
       router.push('/login');
@@ -195,9 +192,9 @@ export default function EventsPage() {
 
       const reg = data as Registration;
       if (reg.status === 'waitlisted') {
-        setSuccessMsg(`Event is currently full. You have been added to the waitlist for "${event.title}".`);
+        setSuccessMsg(`Event capacity reached. You have been added to the waitlist for "${event.title}".`);
       } else {
-        setSuccessMsg(`Successfully registered for "${event.title}"! Your confirmed QR ticket is ready.`);
+        setSuccessMsg(`Registration confirmed for "${event.title}". Pass is available under My Passes.`);
       }
       fetchData();
     } catch (err: any) {
@@ -215,7 +212,7 @@ export default function EventsPage() {
     }
 
     if (userProfile.role !== 'student') {
-      setErrorMsg('Only students can volunteer for events.');
+      setErrorMsg('Only students can apply as volunteers.');
       return;
     }
 
@@ -240,7 +237,7 @@ export default function EventsPage() {
         return;
       }
 
-      setSuccessMsg(`Application submitted to volunteer for "${event.title}"! The organizer will review your request.`);
+      setSuccessMsg(`Volunteer application submitted for "${event.title}". The organizer will review your application.`);
       fetchData();
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to submit volunteer application.');
@@ -249,9 +246,9 @@ export default function EventsPage() {
     }
   };
 
-  // Handle Cancel Registration (before event start)
+  // Handle Cancel Registration
   const handleCancelRegistration = async (registrationId: string, eventTitle: string) => {
-    if (!confirm(`Are you sure you want to cancel your pass/waitlist spot for "${eventTitle}"?`)) return;
+    if (!confirm(`Cancel your registration/waitlist spot for "${eventTitle}"?`)) return;
 
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -393,87 +390,82 @@ export default function EventsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-      {/* Header Banner */}
-      <div className="overflow-hidden rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A24B]/30 bg-[#FDF8ED] px-3.5 py-1 text-xs font-bold text-[#A07C28]">
-              <Sparkles className="h-3.5 w-3.5" />
-              Official Campus Schedule &amp; Passes
-            </div>
-            <h1 className="font-serif text-3xl sm:text-4xl font-extrabold tracking-tight text-[#2B1B17]">
-              Campus Events &amp; Fests
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+      {/* Header Bar */}
+      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+              Campus Events Schedule
             </h1>
-            <p className="text-xs sm:text-sm text-[#7A6A62]">
-              Explore student club workshops, department conferences, and cultural fests with digital QR entry.
+            <p className="mt-1 text-sm text-neutral-500">
+              Browse approved club activities, department workshops, and institutional fests.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {myRegistrations.length > 0 && (
               <Link
                 href="/my-events"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#B3202A] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] transition-colors"
+                className="inline-flex items-center gap-2 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
               >
                 <QrCode className="h-4 w-4" />
-                My Passes &amp; Roles ({myRegistrations.length})
+                My Passes ({myRegistrations.length})
               </Link>
             )}
 
             <button
               onClick={fetchData}
-              className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-2.5 text-[#7A6A62] shadow-xs hover:border-[#B3202A] hover:text-[#B3202A] hover:bg-[#FFFFFF] transition-colors cursor-pointer"
-              title="Refresh feed"
+              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+              title="Refresh schedule"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
             </button>
           </div>
         </div>
 
         {/* Global Alert Banners */}
         {errorMsg && (
-          <div className="mt-4 rounded-xl border border-[#FECACA] bg-[#FEE2E2] p-3 text-xs text-[#7F1D1D] flex items-center justify-between">
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-[#7F1D1D] shrink-0" />
+              <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
               <span className="font-medium">{errorMsg}</span>
             </div>
-            <button onClick={() => setErrorMsg(null)} className="text-[#7F1D1D] hover:opacity-75 cursor-pointer">
+            <button onClick={() => setErrorMsg(null)} className="text-[#991B1B] hover:opacity-75 cursor-pointer">
               <XCircle className="h-4 w-4" />
             </button>
           </div>
         )}
 
         {successMsg && (
-          <div className="mt-4 rounded-xl border border-[#BBF7D0] bg-[#DCFCE7] p-3 text-xs text-[#15803D] flex items-center justify-between">
+          <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-[#15803D] shrink-0" />
-              <span className="font-semibold">{successMsg}</span>
+              <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
+              <span className="font-medium">{successMsg}</span>
             </div>
-            <button onClick={() => setSuccessMsg(null)} className="text-[#15803D] hover:opacity-75 cursor-pointer">
+            <button onClick={() => setSuccessMsg(null)} className="text-emerald-800 hover:opacity-75 cursor-pointer">
               <XCircle className="h-4 w-4" />
             </button>
           </div>
         )}
       </div>
 
-      {/* PRIMARY FEST TABS BAR (Pill Tabs) */}
-      <div className="space-y-6">
-        <div className="flex items-center gap-2 border-b border-[#EADFD6] pb-3 overflow-x-auto">
-          {/* Standalone Tab */}
+      {/* Primary Category Tabs (Flat Underlined Tabs) */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 border-b border-neutral-200 overflow-x-auto">
           <button
             onClick={() => setSelectedFestTab('standalone')}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer shrink-0 ${
               selectedFestTab === 'standalone'
-                ? 'bg-[#B3202A] text-white shadow-xs'
-                : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#7A6A62] hover:text-[#2B1B17] hover:border-[#B3202A]'
+                ? 'border-[#A4161A] text-[#A4161A] font-semibold'
+                : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
             }`}
           >
             <Layers className="h-3.5 w-3.5" />
             Standalone Events ({events.filter((e) => e.fest_id === null).length})
           </button>
 
-          {/* Active Fests */}
           {activeFests.map((fest) => {
             const count = events.filter((e) => e.fest_id === fest.id).length;
             const isSelected = selectedFestTab === fest.id;
@@ -482,26 +474,27 @@ export default function EventsPage() {
               <button
                 key={fest.id}
                 onClick={() => setSelectedFestTab(fest.id)}
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer shrink-0 ${
                   isSelected
-                    ? 'bg-[#B3202A] text-white shadow-xs'
-                    : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#7A6A62] hover:text-[#2B1B17] hover:border-[#B3202A]'
+                    ? 'border-[#A4161A] text-[#A4161A] font-semibold'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
                 }`}
               >
-                <Sparkles className="h-3.5 w-3.5 text-[#C9A24B]" />
-                {fest.name} ({count})
+                <span>{fest.name}</span>
+                <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-600 font-normal">
+                  {count}
+                </span>
               </button>
             );
           })}
 
-          {/* Past Fests Archive */}
           {inactiveFestEventsCount > 0 && (
             <button
               onClick={() => setSelectedFestTab('past_fests_archive')}
-              className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer shrink-0 ${
                 selectedFestTab === 'past_fests_archive'
-                  ? 'bg-[#B3202A] text-white shadow-xs'
-                  : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#7A6A62] hover:text-[#2B1B17] hover:border-[#B3202A]'
+                  ? 'border-[#A4161A] text-[#A4161A] font-semibold'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
               }`}
             >
               <Archive className="h-3.5 w-3.5" />
@@ -510,67 +503,63 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* TIME SUB-TABS & FILTERS */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setTimeTab('upcoming')}
-                className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  timeTab === 'upcoming'
-                    ? 'bg-[#B3202A] text-white shadow-xs'
-                    : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#7A6A62] hover:text-[#2B1B17]'
-                }`}
-              >
-                Upcoming ({classifiedEvents.upcoming.length})
-              </button>
+        {/* Time Tabs & Filters */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-1.5 bg-neutral-100 p-1 rounded-md">
+            <button
+              onClick={() => setTimeTab('upcoming')}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                timeTab === 'upcoming'
+                  ? 'bg-white text-neutral-900 shadow-xs font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              Upcoming ({classifiedEvents.upcoming.length})
+            </button>
 
-              <button
-                onClick={() => setTimeTab('ongoing')}
-                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  timeTab === 'ongoing'
-                    ? 'bg-[#B3202A] text-white shadow-xs'
-                    : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#15803D] hover:bg-[#DCFCE7]/40'
-                }`}
-              >
-                <span className="h-2 w-2 rounded-full bg-[#15803D] animate-pulse"></span>
-                Ongoing ({classifiedEvents.ongoing.length})
-              </button>
+            <button
+              onClick={() => setTimeTab('ongoing')}
+              className={`flex items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                timeTab === 'ongoing'
+                  ? 'bg-white text-neutral-900 shadow-xs font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+              Ongoing ({classifiedEvents.ongoing.length})
+            </button>
 
-              <button
-                onClick={() => setTimeTab('past')}
-                className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  timeTab === 'past'
-                    ? 'bg-[#B3202A] text-white shadow-xs'
-                    : 'bg-[#FFFFFF] border border-[#EADFD6] text-[#7A6A62] hover:text-[#2B1B17]'
-                }`}
-              >
-                Past ({classifiedEvents.past.length})
-              </button>
-            </div>
-
-            <div className="text-xs text-[#7A6A62] font-serif font-bold">{getActiveTabTitle()}</div>
+            <button
+              onClick={() => setTimeTab('past')}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                timeTab === 'past'
+                  ? 'bg-white text-neutral-900 shadow-xs font-semibold'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              Past ({classifiedEvents.past.length})
+            </button>
           </div>
 
           {/* Search & Organizer Filters */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#FFFFFF] p-3 rounded-2xl border border-[#EADFD6] shadow-xs">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A6A62]" />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by event title, organizer, or keywords..."
-                className="w-full rounded-xl border border-[#EADFD6] bg-[#FFFAF5] py-2 pl-10 pr-4 text-xs text-[#2B1B17] placeholder:text-[#A3938B] focus:border-[#B3202A] focus:bg-white focus:outline-none"
+                placeholder="Search title, venue, or club..."
+                className="w-full sm:w-64 rounded-md border border-neutral-300 bg-white py-1.5 pl-8 pr-3 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none"
               />
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-[#7A6A62] bg-[#FFFAF5] rounded-xl px-3 py-1.5 border border-[#EADFD6]">
-              <Filter className="h-3.5 w-3.5 text-[#7A6A62]" />
+            <div className="flex items-center gap-1.5 text-xs text-neutral-700 bg-white rounded-md px-2.5 py-1.5 border border-neutral-300">
+              <Filter className="h-3.5 w-3.5 text-neutral-400" />
               <select
                 value={organizerFilter}
                 onChange={(e) => setOrganizerFilter(e.target.value as 'all' | 'club' | 'department')}
-                className="bg-transparent text-xs font-bold text-[#2B1B17] focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-medium text-neutral-800 focus:outline-none cursor-pointer"
               >
                 <option value="all">All Organizers</option>
                 <option value="club">Student Clubs</option>
@@ -583,28 +572,28 @@ export default function EventsPage() {
 
       {/* Events Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="h-96 w-full animate-pulse rounded-2xl bg-[#EADFD6]/40"
+              className="h-80 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200"
             />
           ))}
         </div>
       ) : filteredList.length === 0 ? (
-        <div className="rounded-3xl border border-[#EADFD6] bg-[#FFFFFF] p-12 text-center shadow-xs">
-          <Calendar className="mx-auto h-12 w-12 text-[#D5C5B8]" />
-          <h3 className="mt-3 font-serif text-lg font-bold text-[#2B1B17]">
-            No events found in this category
+        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
+          <Calendar className="mx-auto h-10 w-10 text-neutral-300" />
+          <h3 className="mt-3 text-base font-semibold text-neutral-900">
+            No events found
           </h3>
-          <p className="mt-1 text-xs text-[#7A6A62]">
+          <p className="mt-1 text-xs text-neutral-500">
             {selectedFestTab === 'past_fests_archive'
-              ? 'No archived events found.'
-              : 'Try selecting a different time tab or clearing your search filters.'}
+              ? 'No past events archived under this category.'
+              : 'Try selecting a different tab or adjusting your search filters.'}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredList.map((event) => {
             const { dateStr, startTimeStr, endTimeStr } = formatEventDate(
               event.start_time,
@@ -636,78 +625,78 @@ export default function EventsPage() {
             return (
               <div
                 key={event.id}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-[#EADFD6] bg-[#FFFFFF] shadow-xs transition-all hover:shadow-md hover:border-[#B3202A]/40"
+                className="flex flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs transition-colors hover:border-neutral-300"
               >
-                {/* Poster on top with rounded corners */}
-                <div className="relative h-48 w-full overflow-hidden bg-[#FAF0F0]">
+                {/* Poster on top */}
+                <div className="relative h-44 w-full overflow-hidden bg-neutral-100 border-b border-neutral-200">
                   {event.poster_url ? (
                     <img
                       src={event.poster_url}
                       alt={event.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-[#8E1A22] via-[#B3202A] to-[#681116] p-4 text-center text-white">
-                      <Building2 className="h-8 w-8 text-white/80 mb-1" />
-                      <span className="text-xs font-bold tracking-wider uppercase text-[#E5C378]">
+                    <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-100 p-4 text-center">
+                      <Building2 className="h-8 w-8 text-neutral-400 mb-1" />
+                      <span className="text-xs font-semibold text-neutral-600">
                         {event.club_or_dept || 'Campus Event'}
                       </span>
                     </div>
                   )}
 
                   {/* Badges on poster */}
-                  <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+                  <div className="absolute top-2.5 left-2.5 flex flex-wrap items-center gap-1.5">
                     {festObj && (
-                      <span className="rounded-full bg-[#C9A24B] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#2B1B17] shadow-xs">
+                      <span className="rounded bg-neutral-900/85 px-2 py-0.5 text-[10px] font-semibold text-white">
                         {festObj.name}
                       </span>
                     )}
 
                     {isRegistered ? (
                       isWaitlisted ? (
-                        <span className="rounded-full bg-[#FEF3C7] border border-[#FDE68A] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#B45309] shadow-xs flex items-center gap-1">
+                        <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900 flex items-center gap-1">
                           <Hourglass className="h-2.5 w-2.5" /> Waitlisted
                         </span>
                       ) : (
-                        <span className="rounded-full bg-[#DCFCE7] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#15803D] shadow-xs flex items-center gap-1">
-                          <CheckCircle2 className="h-2.5 w-2.5" /> Confirmed
+                        <span className="rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900 flex items-center gap-1">
+                          <CheckCircle2 className="h-2.5 w-2.5" /> Registered
                         </span>
                       )
                     ) : hasEnded ? (
-                      <span className="rounded-full bg-[#2B1B17]/80 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-xs">
+                      <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-medium text-white">
                         Ended
                       </span>
                     ) : isFull ? (
-                      <span className="rounded-full bg-[#FEF3C7] border border-[#FDE68A] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#B45309] shadow-xs flex items-center gap-1">
+                      <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900 flex items-center gap-1">
                         <Hourglass className="h-2.5 w-2.5" /> Waitlist Open
                       </span>
                     ) : (
-                      <span className="rounded-full bg-[#DCFCE7] border border-[#BBF7D0] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#15803D] shadow-xs flex items-center gap-1">
+                      <span className="rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900 flex items-center gap-1">
                         <CheckCircle2 className="h-2.5 w-2.5" /> Open
                       </span>
                     )}
 
                     {volunteersNeeded > 0 && (
-                      <span className="rounded-full bg-[#FAF0F0] border border-[#EADFD6] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8E1A22] shadow-xs flex items-center gap-1">
-                        <HandHelping className="h-2.5 w-2.5" /> Volunteers
+                      <span className="rounded bg-neutral-100 border border-neutral-300 px-2 py-0.5 text-[10px] font-medium text-neutral-800 flex items-center gap-1">
+                        <HandHelping className="h-2.5 w-2.5 text-[#A4161A]" /> Volunteers Needed
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Card Content */}
-                <div className="flex flex-1 flex-col p-5 space-y-4 justify-between">
-                  <div className="space-y-2">
-                    {/* Club / Dept Chip & Seats-left indicator */}
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="inline-flex items-center rounded-md bg-[#FAF0F0] border border-[#EADFD6] px-2 py-0.5 text-[10px] font-bold text-[#8E1A22] uppercase tracking-wider">
-                        {event.club_or_dept || 'Official Campus Event'}
+                {/* Card Body */}
+                <div className="flex flex-1 flex-col p-4 justify-between space-y-3">
+                  <div className="space-y-1.5">
+                    {/* Club / Dept Chip & Seats */}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="inline-flex items-center rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-700">
+                        {event.club_or_dept || 'Campus Event'}
                       </span>
 
                       {seatsLeft !== null && (
-                        <span className={`text-[11px] font-bold ${seatsLeft === 0 ? 'text-[#B45309]' : seatsLeft < 20 ? 'text-[#B3202A]' : 'text-[#15803D]'}`}>
+                        <span className={`text-[11px] font-medium ${seatsLeft === 0 ? 'text-amber-700 font-semibold' : seatsLeft < 20 ? 'text-[#991B1B] font-semibold' : 'text-neutral-600'}`}>
                           {seatsLeft === 0 ? (
-                            waitlistCount > 0 ? `Full (${waitlistCount} waitlist)` : 'Full • Waitlist'
+                            waitlistCount > 0 ? `Full (${waitlistCount} waitlist)` : 'Full'
                           ) : (
                             `${seatsLeft} seats left`
                           )}
@@ -715,70 +704,70 @@ export default function EventsPage() {
                       )}
                     </div>
 
-                    <h3 className="font-serif text-lg font-bold text-[#2B1B17] line-clamp-2 leading-snug">
+                    <h3 className="text-base font-bold text-neutral-900 line-clamp-2 leading-tight">
                       {event.title}
                     </h3>
 
                     {event.description && (
-                      <p className="text-xs text-[#7A6A62] line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-neutral-500 line-clamp-2 leading-relaxed">
                         {event.description}
                       </p>
                     )}
                   </div>
 
-                  {/* Venue & Time Meta */}
-                  <div className="space-y-2 pt-2 border-t border-[#EADFD6] text-xs">
-                    <div className="flex items-center justify-between text-[#2B1B17]">
-                      <span className="flex items-center gap-1.5 font-bold">
-                        <MapPin className="h-3.5 w-3.5 text-[#B3202A]" />
+                  {/* Venue & Schedule Meta */}
+                  <div className="space-y-1.5 pt-2 border-t border-neutral-100 text-xs text-neutral-600">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-medium text-neutral-800">
+                        <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
                         {hall?.name || 'Campus Venue'}
                       </span>
                       {hall?.capacity && (
-                        <span className="flex items-center gap-1 text-[11px] text-[#7A6A62] font-mono">
-                          <Users className="h-3 w-3" /> {registeredCount}/{hall.capacity} booked
+                        <span className="flex items-center gap-1 text-[11px] text-neutral-500">
+                          <Users className="h-3 w-3" /> {registeredCount}/{hall.capacity}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[#7A6A62] font-mono text-[11px]">
-                      <Calendar className="h-3.5 w-3.5 text-[#7A6A62]" />
+                    <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                      <Calendar className="h-3.5 w-3.5 text-neutral-400" />
                       <span>{dateStr}</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[#7A6A62] font-mono text-[11px]">
-                      <Clock className="h-3.5 w-3.5 text-[#7A6A62]" />
+                    <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                      <Clock className="h-3.5 w-3.5 text-neutral-400" />
                       <span>{startTimeStr} – {endTimeStr}</span>
                     </div>
                   </div>
 
                   {/* Actions Section */}
-                  <div className="space-y-2 pt-2 border-t border-[#EADFD6]">
+                  <div className="pt-2 border-t border-neutral-100 space-y-2">
                     {isRegistered ? (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {isWaitlisted ? (
-                          <div className="flex items-center justify-between rounded-xl bg-[#FEF3C7] border border-[#FDE68A] px-3 py-2 text-xs font-bold text-[#B45309]">
+                          <div className="flex items-center justify-between rounded-md bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-900">
                             <span className="flex items-center gap-1.5">
-                              <Hourglass className="h-4 w-4 text-[#B45309]" />
+                              <Hourglass className="h-3.5 w-3.5 text-amber-700" />
                               Waitlisted
                             </span>
                             <Link
                               href="/my-events"
-                              className="text-xs text-[#B45309] hover:underline font-bold"
+                              className="text-xs text-[#A4161A] hover:underline font-semibold"
                             >
                               Check Rank
                             </Link>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-between rounded-xl bg-[#DCFCE7] border border-[#BBF7D0] px-3 py-2 text-xs font-bold text-[#15803D]">
+                          <div className="flex items-center justify-between rounded-md bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-900">
                             <span className="flex items-center gap-1.5">
-                              <CheckCircle2 className="h-4 w-4 text-[#15803D]" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
                               Pass Confirmed
                             </span>
                             <Link
                               href="/my-events"
-                              className="text-xs text-[#15803D] hover:underline font-bold"
+                              className="text-xs text-[#A4161A] hover:underline font-semibold"
                             >
-                              Open Pass
+                              View Pass
                             </Link>
                           </div>
                         )}
@@ -787,22 +776,22 @@ export default function EventsPage() {
                           <button
                             onClick={() => handleCancelRegistration(myReg.id, event.title)}
                             disabled={actionLoadingId === myReg.id}
-                            className="w-full text-center text-[11px] font-semibold text-[#7F1D1D] hover:underline cursor-pointer"
+                            className="w-full text-center text-[11px] font-medium text-[#991B1B] hover:underline cursor-pointer"
                           >
                             {actionLoadingId === myReg.id ? 'Cancelling...' : 'Cancel Registration'}
                           </button>
                         )}
                       </div>
                     ) : hasEnded ? (
-                      <div className="rounded-xl bg-[#FFFAF5] border border-[#EADFD6] py-2 text-center text-xs font-bold text-[#7A6A62]">
+                      <div className="rounded-md bg-neutral-100 py-2 text-center text-xs font-medium text-neutral-500">
                         Event Concluded
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <button
                           onClick={() => handleRegister(event)}
                           disabled={actionLoadingId === event.id}
-                          className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#B3202A] py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] transition-colors disabled:opacity-50 cursor-pointer"
+                          className="w-full flex items-center justify-center gap-1.5 rounded-md bg-[#A4161A] py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors disabled:opacity-50 cursor-pointer"
                         >
                           {actionLoadingId === event.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -814,7 +803,7 @@ export default function EventsPage() {
                           ) : (
                             <>
                               <QrCode className="h-3.5 w-3.5" />
-                              Register for Event
+                              Register
                             </>
                           )}
                         </button>
@@ -823,20 +812,20 @@ export default function EventsPage() {
                         {volunteersNeeded > 0 && !hasStarted && (
                           <div>
                             {myVol ? (
-                              <div className="rounded-xl bg-[#FDF8ED] border border-[#C9A24B]/30 px-3 py-1.5 text-center text-[11px] font-bold text-[#A07C28]">
+                              <div className="rounded-md bg-neutral-100 border border-neutral-200 px-3 py-1 text-center text-[11px] font-medium text-neutral-700">
                                 Volunteer Applied ({myVol.status})
                               </div>
                             ) : (
                               <button
                                 onClick={() => handleApplyVolunteer(event)}
                                 disabled={actionLoadingId === `vol-${event.id}`}
-                                className="w-full flex items-center justify-center gap-1 rounded-xl border border-[#B3202A] bg-transparent py-1.5 text-[11px] font-bold text-[#B3202A] hover:bg-[#FAF0F0] transition-colors cursor-pointer"
+                                className="w-full flex items-center justify-center gap-1 rounded-md border border-neutral-300 bg-white py-1.5 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
                               >
                                 {actionLoadingId === `vol-${event.id}` ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
                                   <>
-                                    <HandHelping className="h-3 w-3" />
+                                    <HandHelping className="h-3 w-3 text-[#A4161A]" />
                                     Apply as Volunteer
                                   </>
                                 )}

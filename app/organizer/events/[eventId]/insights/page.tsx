@@ -92,7 +92,7 @@ export default function EventInsightsPage() {
 
       setEvent(ev);
 
-      // 2. Fetch ground-truth registrations, reviews, and cached summary
+      // 2. Fetch registrations, reviews, and cached summary
       const [regsRes, reviewsRes, summaryRes] = await Promise.all([
         supabase.from('registrations').select('status, checked_in_at').eq('event_id', eventId),
         supabase
@@ -184,11 +184,11 @@ export default function EventInsightsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-12 space-y-6">
-        <div className="h-28 w-full animate-pulse rounded-2xl bg-[#EADFD6]/50" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
+        <div className="h-20 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-[#EADFD6]/50" />
+            <div key={i} className="h-20 animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
           ))}
         </div>
       </div>
@@ -197,17 +197,17 @@ export default function EventInsightsPage() {
 
   if (errorMsg || !event || !stats) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 text-center space-y-4">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-[#8E1A22] border border-red-200">
-          <ShieldAlert className="h-8 w-8" />
+      <div className="mx-auto max-w-4xl px-4 py-12 text-center space-y-3">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-red-50 text-[#991B1B] border border-red-200">
+          <ShieldAlert className="h-6 w-6" />
         </div>
-        <h2 className="font-serif text-xl font-bold text-[#2B1B17]">Access Restricted</h2>
-        <p className="text-sm text-[#7A6A62]">{errorMsg || 'Unable to display insights.'}</p>
+        <h2 className="text-lg font-bold text-neutral-900">Access Restricted</h2>
+        <p className="text-xs text-neutral-500">{errorMsg || 'Unable to display insights.'}</p>
         <Link
           href="/organizer"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#B3202A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#8E1A22] transition-colors shadow-xs"
+          className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Return to Portal
+          <ArrowLeft className="h-3.5 w-3.5" /> Return to Dashboard
         </Link>
       </div>
     );
@@ -217,198 +217,192 @@ export default function EventInsightsPage() {
   const canGenerateAI = reviewCount >= 5;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-      {/* Back and Header Navigation */}
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+      {/* Back navigation */}
       <div className="flex items-center justify-between">
         <Link
           href="/organizer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7A6A62] hover:text-[#B3202A] transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Organizer Portal
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Organizer Portal
         </Link>
 
         <button
           onClick={loadData}
-          className="rounded-xl border border-[#EADFD6] bg-white p-2.5 text-[#7A6A62] shadow-xs hover:bg-[#FFFAF5] hover:text-[#2B1B17] transition-colors cursor-pointer"
+          className="rounded border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
           title="Refresh stats"
         >
           <RefreshCw className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Hero Event Banner */}
-      <div className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-gradient-to-br from-[#FFFAF5] via-white to-[#FFFAF5]/50 p-6 sm:p-8 shadow-xs relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#B3202A] via-[#C9A24B] to-[#B3202A]" />
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A24B]/40 bg-[#FFFAF5] px-3 py-1 text-xs font-semibold text-[#8E1A22]">
-            <Sparkles className="h-3.5 w-3.5 text-[#C9A24B]" />
-            Event Post-Mortem & Intelligence
-          </div>
-          <h1 className="font-serif text-3xl font-bold tracking-tight text-[#2B1B17]">
-            {event.title}
-          </h1>
-          <div className="flex flex-wrap items-center gap-4 text-xs text-[#7A6A62] pt-1">
-            <span className="flex items-center gap-1">
-              <Building2 className="h-3.5 w-3.5 text-[#B3202A]" />
-              {event.halls?.name || 'Hall'} (Capacity: {stats.capacity})
-            </span>
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5 text-[#C9A24B]" />
-              {new Date(event.start_time).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </span>
-            <span className="flex items-center gap-1 font-mono">
-              <Clock className="h-3.5 w-3.5 text-[#7A6A62]" />
-              {new Date(event.start_time).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-              })}{' '}
-              –{' '}
-              {new Date(event.end_time).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-            </span>
-          </div>
+      {/* Header Banner */}
+      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs space-y-2">
+        <div className="inline-flex items-center gap-1.5 rounded bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
+          Event Analytics &amp; Intelligence
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+          {event.title}
+        </h1>
+        <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500 pt-1">
+          <span className="flex items-center gap-1">
+            <Building2 className="h-3.5 w-3.5 text-[#A4161A]" />
+            {event.halls?.name || 'Venue'} (Capacity: {stats.capacity})
+          </span>
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-neutral-400" />
+            {new Date(event.start_time).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </span>
+          <span className="flex items-center gap-1 font-mono text-[11px]">
+            <Clock className="h-3.5 w-3.5 text-neutral-400" />
+            {new Date(event.start_time).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+            })}{' '}
+            –{' '}
+            {new Date(event.end_time).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
+          </span>
         </div>
       </div>
 
       {/* SQL Ground-Truth Stats Grid */}
       <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[#7A6A62]">
-            Ground-Truth Metrics (Computed in SQL)
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Ground-Truth Metrics (SQL Computed)
           </h2>
-          <span className="text-xs text-[#7A6A62] font-mono">Audited & Verified</span>
+          <span className="text-xs text-neutral-400 font-mono">Audited</span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="rounded-2xl border border-[#EADFD6] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-              <span className="text-xs font-semibold">Registered</span>
-              <Users className="h-4 w-4 text-sky-600" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-xs font-medium">Registered</span>
+              <Users className="h-3.5 w-3.5 text-neutral-400" />
             </div>
-            <div className="font-serif text-2xl font-bold text-[#2B1B17]">
+            <div className="text-xl font-bold text-neutral-900">
               {stats.registered}
             </div>
-            <div className="text-[11px] text-[#7A6A62]">Confirmed passes</div>
+            <div className="text-[10px] text-neutral-400">Confirmed passes</div>
           </div>
 
-          <div className="rounded-2xl border border-[#EADFD6] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-              <span className="text-xs font-semibold">Attended</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-xs font-medium">Attended</span>
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
             </div>
-            <div className="font-serif text-2xl font-bold text-emerald-800">
+            <div className="text-xl font-bold text-emerald-700">
               {stats.attended}
             </div>
-            <div className="text-[11px] text-[#7A6A62]">Scanned at door</div>
+            <div className="text-[10px] text-neutral-400">Scanned at door</div>
           </div>
 
-          <div className="rounded-2xl border border-[#EADFD6] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-              <span className="text-xs font-semibold">No-Show Rate</span>
-              <UserX className="h-4 w-4 text-[#8E1A22]" />
+          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-xs font-medium">No-Show</span>
+              <UserX className="h-3.5 w-3.5 text-[#991B1B]" />
             </div>
-            <div className="font-serif text-2xl font-bold text-[#8E1A22]">
+            <div className="text-xl font-bold text-[#991B1B]">
               {stats.noShowRate}%
             </div>
-            <div className="text-[11px] text-[#7A6A62]">
+            <div className="text-[10px] text-neutral-400">
               {stats.registered - stats.attended} absent
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[#EADFD6] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-              <span className="text-xs font-semibold">Avg Rating</span>
-              <Star className="h-4 w-4 fill-[#C9A24B] text-[#C9A24B]" />
+          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-xs font-medium">Avg Rating</span>
+              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
             </div>
-            <div className="font-serif text-2xl font-bold text-[#C9A24B]">
+            <div className="text-xl font-bold text-neutral-900">
               {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : 'N/A'}
             </div>
-            <div className="text-[11px] text-[#7A6A62]">{reviewCount} reviews</div>
+            <div className="text-[10px] text-neutral-400">{reviewCount} reviews</div>
           </div>
 
-          <div className="rounded-2xl border border-[#EADFD6] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-              <span className="text-xs font-semibold">Waitlist</span>
-              <Hourglass className="h-4 w-4 text-amber-600" />
+          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-xs font-medium">Waitlist</span>
+              <Hourglass className="h-3.5 w-3.5 text-amber-600" />
             </div>
-            <div className="font-serif text-2xl font-bold text-[#2B1B17]">
+            <div className="text-xl font-bold text-neutral-900">
               {stats.waitlistCount}
             </div>
-            <div className="text-[11px] text-[#7A6A62]">Unfulfilled queue</div>
+            <div className="text-[10px] text-neutral-400">Waitlisted count</div>
           </div>
 
-          <div className="rounded-2xl border border-[#EADFD6] bg-white p-4 shadow-xs">
-            <div className="flex items-center justify-between text-[#7A6A62] mb-1">
-              <span className="text-xs font-semibold">Turnout / Cap</span>
-              <Building2 className="h-4 w-4 text-[#B3202A]" />
+          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-1">
+              <span className="text-xs font-medium">Capacity</span>
+              <Building2 className="h-3.5 w-3.5 text-neutral-400" />
             </div>
-            <div className="font-serif text-2xl font-bold text-[#2B1B17]">
+            <div className="text-xl font-bold text-neutral-900">
               {stats.capacity > 0
                 ? `${Math.round((stats.attended / stats.capacity) * 100)}%`
                 : 'N/A'}
             </div>
-            <div className="text-[11px] text-[#7A6A62]">{stats.attended} / {stats.capacity} cap</div>
+            <div className="text-[10px] text-neutral-400">{stats.attended} / {stats.capacity}</div>
           </div>
         </div>
       </div>
 
       {/* AI Summary Section with Gemini */}
-      <div className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-white shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EADFD6] p-6 bg-[#FFFAF5]">
+      <div className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 p-5 bg-neutral-50">
           <div>
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#B3202A] text-white shadow-xs">
-                <Sparkles className="h-4 w-4" />
+              <div className="flex h-6 w-6 items-center justify-center rounded bg-[#A4161A] text-white">
+                <Sparkles className="h-3.5 w-3.5" />
               </div>
-              <h3 className="font-serif text-lg font-bold text-[#2B1B17]">
+              <h3 className="text-base font-bold text-neutral-900">
                 Gemini AI Qualitative Synthesis
               </h3>
             </div>
-            <p className="text-xs text-[#7A6A62] mt-1">
+            <p className="text-xs text-neutral-500 mt-0.5">
               {cachedSummary
-                ? `Synthesized by ${process.env.NEXT_PUBLIC_GEMINI_MODEL || 'Gemini 2.5 Flash'} based on ${cachedSummary.review_count} student reviews`
+                ? `Synthesized based on ${cachedSummary.review_count} attendee reviews`
                 : 'Generates recurring themes, praise, friction points, and recommendations'}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleGenerateSummary}
-              disabled={!canGenerateAI || generating}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#B3202A] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#8E1A22] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Analyzing with Gemini...
-                </>
-              ) : cachedSummary ? (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  Regenerate AI Summary
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate AI Summary
-                </>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={handleGenerateSummary}
+            disabled={!canGenerateAI || generating}
+            className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Analyzing...
+              </>
+            ) : cachedSummary ? (
+              <>
+                <RefreshCw className="h-3.5 w-3.5" />
+                Regenerate Summary
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3.5 w-3.5" />
+                Generate Summary
+              </>
+            )}
+          </button>
         </div>
 
         {/* Generate Error Notice */}
         {genError && (
-          <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 flex items-start gap-2.5">
-            <AlertCircle className="h-4 w-4 shrink-0 text-[#8E1A22] mt-0.5" />
+          <div className="m-4 rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
             <div>
-              <span className="font-bold">Gemini Analysis Notice: </span>
+              <span className="font-semibold">Notice: </span>
               <span>{genError}</span>
             </div>
           </div>
@@ -416,31 +410,31 @@ export default function EventInsightsPage() {
 
         {/* Not enough reviews state */}
         {!canGenerateAI && !cachedSummary && (
-          <div className="p-12 text-center space-y-3">
-            <MessageSquare className="mx-auto h-12 w-12 text-[#EADFD6]" />
-            <h4 className="font-serif text-base font-bold text-[#2B1B17]">
+          <div className="p-10 text-center space-y-2">
+            <MessageSquare className="mx-auto h-8 w-8 text-neutral-300" />
+            <h4 className="text-sm font-semibold text-neutral-900">
               Awaiting More Student Feedback
             </h4>
-            <p className="max-w-md mx-auto text-xs text-[#7A6A62]">
-              AI summary generation requires a minimum of <span className="font-bold text-[#2B1B17]">5 student reviews</span> to produce reliable qualitative insights. Currently collected: <span className="font-bold text-[#B3202A]">{reviewCount} / 5</span>.
+            <p className="max-w-md mx-auto text-xs text-neutral-500">
+              AI summary generation requires a minimum of <span className="font-semibold text-neutral-800">5 student reviews</span>. Current count: <span className="font-semibold text-[#A4161A]">{reviewCount} / 5</span>.
             </p>
           </div>
         )}
 
         {/* Cached / Generated Summary Display */}
         {cachedSummary && (
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Themes */}
-              <div className="rounded-xl border border-[#EADFD6] bg-[#FFFAF5] p-5 space-y-3">
-                <div className="flex items-center gap-2 text-[#8E1A22] font-bold text-sm">
-                  <Sparkles className="h-4 w-4 text-[#C9A24B]" />
-                  Recurring Discussion Themes
+              <div className="rounded border border-neutral-200 bg-neutral-50 p-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-neutral-900 font-semibold text-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-[#A4161A]" />
+                  Discussion Themes
                 </div>
-                <ul className="space-y-2 text-xs text-[#2B1B17]">
+                <ul className="space-y-1.5 text-xs text-neutral-700">
                   {cachedSummary.summary.themes.map((t, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#B3202A] shrink-0" />
+                      <span className="mt-1 h-1 w-1 rounded-full bg-[#A4161A] shrink-0" />
                       <span>{t}</span>
                     </li>
                   ))}
@@ -448,15 +442,15 @@ export default function EventInsightsPage() {
               </div>
 
               {/* What Worked */}
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 space-y-3">
-                <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
-                  <ThumbsUp className="h-4 w-4 text-emerald-700" />
-                  What Worked (Highlights)
+              <div className="rounded border border-emerald-200 bg-emerald-50/40 p-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-emerald-900 font-semibold text-xs">
+                  <ThumbsUp className="h-3.5 w-3.5 text-emerald-700" />
+                  What Worked
                 </div>
-                <ul className="space-y-2 text-xs text-[#2B1B17]">
+                <ul className="space-y-1.5 text-xs text-neutral-800">
                   {cachedSummary.summary.what_worked.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0" />
+                      <span className="mt-1 h-1 w-1 rounded-full bg-emerald-600 shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -464,15 +458,15 @@ export default function EventInsightsPage() {
               </div>
 
               {/* What to Improve */}
-              <div className="rounded-xl border border-red-200 bg-red-50/50 p-5 space-y-3">
-                <div className="flex items-center gap-2 text-red-900 font-bold text-sm">
-                  <Wrench className="h-4 w-4 text-[#8E1A22]" />
-                  Areas to Improve (Friction Points)
+              <div className="rounded border border-red-200 bg-red-50/40 p-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-[#991B1B] font-semibold text-xs">
+                  <Wrench className="h-3.5 w-3.5 text-[#991B1B]" />
+                  Areas to Improve
                 </div>
-                <ul className="space-y-2 text-xs text-[#2B1B17]">
+                <ul className="space-y-1.5 text-xs text-neutral-800">
                   {cachedSummary.summary.what_to_improve.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#B3202A] shrink-0" />
+                      <span className="mt-1 h-1 w-1 rounded-full bg-[#991B1B] shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -480,15 +474,15 @@ export default function EventInsightsPage() {
               </div>
 
               {/* Actionable Suggestions */}
-              <div className="rounded-xl border border-[#C9A24B]/30 bg-[#FFFAF5] p-5 space-y-3">
-                <div className="flex items-center gap-2 text-[#8E1A22] font-bold text-sm">
-                  <Lightbulb className="h-4 w-4 text-[#C9A24B]" />
-                  Actionable Next Steps
+              <div className="rounded border border-neutral-200 bg-neutral-50 p-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-neutral-900 font-semibold text-xs">
+                  <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
+                  Actionable Suggestions
                 </div>
-                <ul className="space-y-2 text-xs text-[#2B1B17]">
+                <ul className="space-y-1.5 text-xs text-neutral-700">
                   {cachedSummary.summary.suggestions.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#C9A24B] shrink-0" />
+                      <span className="mt-1 h-1 w-1 rounded-full bg-amber-600 shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -496,55 +490,48 @@ export default function EventInsightsPage() {
               </div>
             </div>
 
-            <div className="text-[11px] text-[#7A6A62] text-right pt-2 font-mono">
-              Cached insight snapshot • Generated on {new Date(cachedSummary.generated_at).toLocaleString()}
+            <div className="text-[11px] text-neutral-400 text-right font-mono">
+              Generated on {new Date(cachedSummary.generated_at).toLocaleString()}
             </div>
           </div>
         )}
       </div>
 
-      {/* Anonymized Student Reviews List (NO STUDENT EMAILS VISIBLE) */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-serif text-lg font-bold text-[#2B1B17]">
-              Student Feedback ({reviewCount})
-            </h3>
-            <p className="text-xs text-[#7A6A62]">
-              Verified attendee submissions • Anonymous student evaluations
-            </p>
-          </div>
-        </div>
+      {/* Anonymized Student Reviews List */}
+      <div className="space-y-3">
+        <h3 className="text-base font-bold text-neutral-900">
+          Student Feedback ({reviewCount})
+        </h3>
 
         {reviews.length === 0 ? (
-          <div className="rounded-2xl border border-[#EADFD6] bg-white p-8 text-center text-xs text-[#7A6A62]">
-            No reviews have been submitted for this event yet.
+          <div className="rounded-md border border-neutral-200 bg-white p-6 text-center text-xs text-neutral-500">
+            No reviews submitted yet for this event.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {reviews.map((rev) => (
               <div
                 key={rev.id}
-                className="rounded-2xl border border-[#EADFD6] bg-white p-5 space-y-3 shadow-xs hover:border-[#C9A24B]/50 transition-colors"
+                className="rounded-md border border-neutral-200 bg-white p-4 space-y-2 shadow-xs"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
                         key={i}
-                        className={`h-4 w-4 ${
+                        className={`h-3.5 w-3.5 ${
                           i < rev.rating
-                            ? 'fill-[#C9A24B] text-[#C9A24B]'
-                            : 'text-[#EADFD6]'
+                            ? 'fill-amber-500 text-amber-500'
+                            : 'text-neutral-200'
                         }`}
                       />
                     ))}
-                    <span className="text-xs font-bold text-[#2B1B17] ml-1">
+                    <span className="text-xs font-semibold text-neutral-800 ml-1">
                       {rev.rating} / 5
                     </span>
                   </div>
 
-                  <span className="text-[11px] text-[#7A6A62] font-mono">
+                  <span className="text-[11px] text-neutral-400 font-mono">
                     {new Date(rev.created_at).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -552,8 +539,8 @@ export default function EventInsightsPage() {
                   </span>
                 </div>
 
-                <p className="text-xs text-[#2B1B17] leading-relaxed italic">
-                  {rev.comment ? `"${rev.comment}"` : <span className="text-[#7A6A62] not-italic">(Rating only, no written comment)</span>}
+                <p className="text-xs text-neutral-800 leading-relaxed">
+                  {rev.comment ? `"${rev.comment}"` : <span className="text-neutral-400 italic">(Rating only)</span>}
                 </p>
               </div>
             ))}

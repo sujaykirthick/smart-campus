@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client';
 import type { CampusEvent, Hall, AllowedUser, UserRole, Volunteer } from '@/lib/types';
 import EventFormModal from '@/components/EventFormModal';
 import {
-  Sparkles,
   Calendar,
   Plus,
   Clock,
@@ -28,10 +27,8 @@ import {
   UserCheck,
   UserX,
   X,
-  Check,
   Loader2,
   TrendingUp,
-  BarChart3,
 } from 'lucide-react';
 
 interface EventStats {
@@ -222,27 +219,27 @@ export default function OrganizerPage() {
     switch (status) {
       case 'approved':
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" /> Approved
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-medium text-emerald-800">
+            <CheckCircle2 className="h-3 w-3 text-emerald-700" /> Approved
           </span>
         );
       case 'submitted':
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-800">
-            <Clock className="h-3.5 w-3.5 text-amber-700" /> Submitted (In Review)
+          <span className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">
+            <Clock className="h-3 w-3 text-amber-700" /> Submitted (In Review)
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-bold text-red-900">
-            <AlertCircle className="h-3.5 w-3.5 text-[#8E1A22]" /> Action Required (Rejected)
+          <span className="inline-flex items-center gap-1 rounded bg-red-50 border border-red-200 px-2 py-0.5 text-xs font-medium text-[#991B1B]">
+            <AlertCircle className="h-3 w-3 text-[#991B1B]" /> Revision Required
           </span>
         );
       case 'draft':
       default:
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFAF5] border border-[#EADFD6] px-2.5 py-0.5 text-xs font-semibold text-[#7A6A62]">
-            <FileText className="h-3.5 w-3.5 text-[#7A6A62]" /> Draft
+          <span className="inline-flex items-center gap-1 rounded bg-neutral-100 border border-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-600">
+            <FileText className="h-3 w-3 text-neutral-500" /> Draft
           </span>
         );
     }
@@ -251,45 +248,43 @@ export default function OrganizerPage() {
   const orgName = profile?.club_name || profile?.department || profile?.name || 'Organizer';
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       {/* Header Profile Banner */}
-      <div className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-gradient-to-br from-[#FFFAF5] via-white to-[#FFFAF5]/50 p-6 sm:p-8 shadow-xs relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#B3202A] via-[#C9A24B] to-[#B3202A]" />
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A24B]/40 bg-[#FFFAF5] px-3 py-1 text-xs font-semibold text-[#8E1A22]">
-              <Sparkles className="h-3.5 w-3.5 text-[#C9A24B]" />
+      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 rounded bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
               Role: {(profile?.role || 'club').toUpperCase()}
             </div>
-            <h1 className="font-serif text-3xl font-bold tracking-tight text-[#2B1B17]">
-              {orgName} Portal
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+              {orgName} Dashboard
             </h1>
-            <p className="text-sm text-[#7A6A62]">
-              Logged in as <span className="font-mono font-medium text-[#2B1B17]">{profile?.email}</span>
+            <p className="text-xs text-neutral-500 font-mono">
+              {profile?.email}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/organizer/insights"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#C9A24B]/50 bg-white px-4 py-2.5 text-sm font-semibold text-[#8E1A22] shadow-xs hover:bg-[#FFFAF5] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3.5 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
             >
-              <TrendingUp className="h-4 w-4 text-[#C9A24B]" />
-              Club Analytics & AI
+              <TrendingUp className="h-4 w-4 text-[#A4161A]" />
+              Analytics &amp; AI
             </Link>
 
             <button
               onClick={handleOpenCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#B3202A] px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-[#8E1A22] transition-all hover:scale-[1.01] cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
             >
               <Plus className="h-4 w-4" />
-              Propose New Event
+              Propose Event
             </button>
 
             <button
               onClick={loadData}
-              className="rounded-xl border border-[#EADFD6] bg-white p-2.5 text-[#7A6A62] shadow-xs hover:bg-[#FFFAF5] hover:text-[#2B1B17] transition-colors cursor-pointer"
-              title="Refresh events"
+              className="rounded-md border border-neutral-300 bg-white p-2 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
+              title="Refresh dashboard"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -297,67 +292,67 @@ export default function OrganizerPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-[#EADFD6] text-xs">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-neutral-200 text-xs">
           <button
             onClick={() => setActiveTab('draft')}
-            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
               activeTab === 'draft'
-                ? 'border-[#B3202A] bg-[#B3202A] text-white shadow-xs'
-                : 'border-[#EADFD6] bg-white text-[#2B1B17] hover:bg-[#FFFAF5]'
+                ? 'border-[#A4161A] bg-neutral-100 text-neutral-900 font-semibold'
+                : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
             }`}
           >
-            <div className="font-medium opacity-80">Drafts</div>
-            <div className="font-serif text-2xl font-bold mt-0.5">{counts.draft}</div>
+            <div className="text-neutral-500">Drafts</div>
+            <div className="text-xl font-bold text-neutral-900 mt-0.5">{counts.draft}</div>
           </button>
 
           <button
             onClick={() => setActiveTab('submitted')}
-            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
               activeTab === 'submitted'
-                ? 'border-[#B3202A] bg-[#B3202A] text-white shadow-xs'
-                : 'border-amber-200 bg-amber-50/60 text-amber-900 hover:bg-amber-50'
+                ? 'border-[#A4161A] bg-amber-50 text-amber-900 font-semibold'
+                : 'border-amber-200 bg-amber-50/50 text-amber-800 hover:bg-amber-50'
             }`}
           >
-            <div className="font-medium opacity-80">Submitted (Pending)</div>
-            <div className="font-serif text-2xl font-bold mt-0.5">{counts.submitted}</div>
+            <div className="text-amber-700">Submitted (In Review)</div>
+            <div className="text-xl font-bold text-amber-900 mt-0.5">{counts.submitted}</div>
           </button>
 
           <button
             onClick={() => setActiveTab('approved')}
-            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
               activeTab === 'approved'
-                ? 'border-[#B3202A] bg-[#B3202A] text-white shadow-xs'
-                : 'border-emerald-200 bg-emerald-50/60 text-emerald-900 hover:bg-emerald-50'
+                ? 'border-[#A4161A] bg-emerald-50 text-emerald-900 font-semibold'
+                : 'border-emerald-200 bg-emerald-50/50 text-emerald-800 hover:bg-emerald-50'
             }`}
           >
-            <div className="font-medium opacity-80">Approved Events</div>
-            <div className="font-serif text-2xl font-bold mt-0.5">{counts.approved}</div>
+            <div className="text-emerald-700">Approved Events</div>
+            <div className="text-xl font-bold text-emerald-900 mt-0.5">{counts.approved}</div>
           </button>
 
           <button
             onClick={() => setActiveTab('rejected')}
-            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
               activeTab === 'rejected'
-                ? 'border-[#B3202A] bg-[#B3202A] text-white shadow-xs'
-                : 'border-red-200 bg-red-50/60 text-red-900 hover:bg-red-50'
+                ? 'border-[#A4161A] bg-red-50 text-[#991B1B] font-semibold'
+                : 'border-red-200 bg-red-50/50 text-[#991B1B] hover:bg-red-50'
             }`}
           >
-            <div className="font-medium opacity-80">Rejected / Revisions</div>
-            <div className="font-serif text-2xl font-bold mt-0.5">{counts.rejected}</div>
+            <div className="text-[#991B1B]">Action Required</div>
+            <div className="text-xl font-bold text-[#991B1B] mt-0.5">{counts.rejected}</div>
           </button>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#EADFD6] pb-3 overflow-x-auto text-sm">
+      <div className="flex items-center gap-1 border-b border-neutral-200 pb-2 overflow-x-auto text-xs">
         {(['all', 'draft', 'submitted', 'approved', 'rejected'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`rounded-full px-4 py-1.5 font-medium capitalize transition-all cursor-pointer ${
+            className={`rounded px-3 py-1.5 font-medium capitalize transition-colors cursor-pointer ${
               activeTab === tab
-                ? 'bg-[#B3202A] text-white shadow-xs font-semibold'
-                : 'text-[#7A6A62] hover:bg-[#EADFD6]/40 hover:text-[#2B1B17]'
+                ? 'bg-neutral-900 text-white font-semibold'
+                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
             }`}
           >
             {tab === 'all' ? `All (${counts.all})` : `${tab} (${counts[tab]})`}
@@ -367,34 +362,34 @@ export default function OrganizerPage() {
 
       {/* Events List */}
       {loading ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-32 w-full animate-pulse rounded-2xl bg-[#EADFD6]/50"
+              className="h-28 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200"
             />
           ))}
         </div>
       ) : filteredEvents.length === 0 ? (
-        <div className="rounded-2xl border border-[#EADFD6] bg-white p-12 text-center">
-          <Calendar className="mx-auto h-12 w-12 text-[#EADFD6]" />
-          <h3 className="mt-3 font-serif text-lg font-bold text-[#2B1B17]">
+        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center">
+          <Calendar className="mx-auto h-10 w-10 text-neutral-300" />
+          <h3 className="mt-3 text-base font-semibold text-neutral-900">
             No {activeTab !== 'all' ? activeTab : ''} events found
           </h3>
-          <p className="mt-1 text-sm text-[#7A6A62]">
+          <p className="mt-1 text-xs text-neutral-500">
             {activeTab === 'draft'
               ? 'You have no saved drafts.'
-              : 'Create your first event proposal to get started.'}
+              : 'Create an event proposal to submit for review.'}
           </p>
           <button
             onClick={handleOpenCreate}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#B3202A] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#8E1A22] transition-colors cursor-pointer"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Propose Event
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-3">
           {filteredEvents.map((event) => {
             const startFmt = formatDateTime(event.start_time);
             const endFmt = formatDateTime(event.end_time);
@@ -407,9 +402,9 @@ export default function OrganizerPage() {
             return (
               <div
                 key={event.id}
-                className="overflow-hidden rounded-2xl border border-[#EADFD6] bg-white shadow-xs transition-all hover:border-[#C9A24B]/60 hover:shadow-md"
+                className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
               >
-                <div className="p-6">
+                <div className="p-4 sm:p-5">
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     {/* Left: Poster + Details */}
                     <div className="flex items-start gap-4 flex-1">
@@ -417,65 +412,65 @@ export default function OrganizerPage() {
                         <img
                           src={event.poster_url}
                           alt={event.title}
-                          className="h-24 w-24 rounded-xl object-cover border border-[#EADFD6] shrink-0"
+                          className="h-20 w-20 rounded object-cover border border-neutral-200 shrink-0"
                         />
                       ) : (
-                        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-[#FFFAF5] border border-[#EADFD6] text-[#7A6A62]">
-                          <Building2 className="h-8 w-8 text-[#B3202A]/60" />
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded bg-neutral-100 border border-neutral-200 text-neutral-500">
+                          <Building2 className="h-6 w-6 text-neutral-400" />
                         </div>
                       )}
 
-                      <div className="space-y-1.5 flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {getStatusBadge(event.status)}
                           {event.fests && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-[#FFFAF5] px-2.5 py-0.5 text-xs font-semibold text-[#8E1A22] border border-[#C9A24B]/50">
-                              <Sparkles className="h-3 w-3 text-[#C9A24B]" /> Fest: {event.fests.name}
+                            <span className="inline-flex items-center rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-800">
+                              Fest: {event.fests.name}
                             </span>
                           )}
 
                           {event.status === 'approved' && (
                             <>
-                              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                              <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 border border-emerald-200">
                                 <Users className="h-3 w-3" /> {stats.registered} confirmed
                               </span>
 
                               {stats.waitlisted > 0 && (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
-                                  <Hourglass className="h-3 w-3" /> {stats.waitlisted} on waitlist
+                                <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
+                                  <Hourglass className="h-3 w-3" /> {stats.waitlisted} waitlisted
                                 </span>
                               )}
 
                               {volunteersNeeded > 0 && (
                                 <button
                                   onClick={() => setManagingVolunteersEvent(event)}
-                                  className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800 border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-800 border border-neutral-300 hover:bg-neutral-200 transition-colors cursor-pointer"
                                 >
-                                  <HandHelping className="h-3 w-3" /> Volunteers: {acceptedVolsCount}/{volunteersNeeded} accepted ({vols.length} applicants)
+                                  <HandHelping className="h-3 w-3 text-[#A4161A]" /> Volunteers: {acceptedVolsCount}/{volunteersNeeded}
                                 </button>
                               )}
                             </>
                           )}
                         </div>
 
-                        <h3 className="font-serif text-lg font-bold text-[#2B1B17] truncate">
+                        <h3 className="text-base font-bold text-neutral-900 truncate">
                           {event.title}
                         </h3>
 
                         {event.description && (
-                          <p className="text-xs text-[#7A6A62] line-clamp-2">
+                          <p className="text-xs text-neutral-500 line-clamp-1">
                             {event.description}
                           </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-[#7A6A62] pt-1">
-                          <div className="flex items-center gap-1 font-medium text-[#2B1B17]">
-                            <MapPin className="h-3.5 w-3.5 text-[#B3202A]" />
-                            {hall?.name || 'Hall'} {hall?.capacity ? `(${hall.capacity} seats)` : ''}
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-600 pt-1">
+                          <div className="flex items-center gap-1 text-neutral-800 font-medium">
+                            <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
+                            {hall?.name || 'Venue'} {hall?.capacity ? `(${hall.capacity} seats)` : ''}
                           </div>
 
-                          <div className="flex items-center gap-1 font-mono text-[#7A6A62]">
-                            <Calendar className="h-3.5 w-3.5 text-[#C9A24B]" />
+                          <div className="flex items-center gap-1 font-mono text-[11px] text-neutral-500">
+                            <Calendar className="h-3.5 w-3.5 text-neutral-400" />
                             {startFmt.date} • {startFmt.time} – {endFmt.time}
                           </div>
 
@@ -484,7 +479,7 @@ export default function OrganizerPage() {
                               href={event.registration_link}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-1 text-[#B3202A] font-medium hover:underline"
+                              className="flex items-center gap-1 text-[#A4161A] font-medium hover:underline"
                             >
                               <ExternalLink className="h-3.5 w-3.5" /> Registration Link
                             </a>
@@ -494,47 +489,45 @@ export default function OrganizerPage() {
                     </div>
 
                     {/* Right: Actions */}
-                    <div className="flex flex-wrap items-center gap-2 self-end md:self-start shrink-0">
-                      {/* Approved Event Action Links */}
+                    <div className="flex flex-wrap items-center gap-1.5 self-end md:self-start shrink-0">
                       {event.status === 'approved' && (
                         <>
                           <Link
                             href={`/organizer/scan/${event.id}`}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-[#B3202A] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#8E1A22] transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded bg-[#A4161A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
                           >
-                            <QrCode className="h-3.5 w-3.5" /> Scan QR
+                            <QrCode className="h-3.5 w-3.5" /> Scan Pass
                           </Link>
 
                           <Link
                             href={`/organizer/events/${event.id}/od`}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-xs"
+                            className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
                           >
-                            <FileSpreadsheet className="h-3.5 w-3.5" /> OD List
+                            <FileSpreadsheet className="h-3.5 w-3.5" /> OD
                           </Link>
 
                           <Link
                             href={`/organizer/events/${event.id}/insights`}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-[#C9A24B]/40 bg-[#FFFAF5] px-3 py-1.5 text-xs font-semibold text-[#8E1A22] hover:bg-[#EADFD6]/40 transition-colors shadow-xs"
+                            className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
                           >
-                            <Sparkles className="h-3.5 w-3.5 text-[#C9A24B]" /> Insights & AI
+                            Insights
                           </Link>
 
                           {volunteersNeeded > 0 && (
                             <button
                               onClick={() => setManagingVolunteersEvent(event)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
                             >
-                              <HandHelping className="h-3.5 w-3.5" /> Volunteers ({vols.length})
+                              <HandHelping className="h-3.5 w-3.5 text-[#A4161A]" /> ({vols.length})
                             </button>
                           )}
                         </>
                       )}
 
-                      {/* Rejection Reason Alert if rejected */}
                       {event.status === 'rejected' && (
                         <button
                           onClick={() => handleDirectSubmit(event)}
-                          className="flex items-center gap-1 rounded-xl bg-[#B3202A] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#8E1A22] transition-colors cursor-pointer"
+                          className="flex items-center gap-1 rounded bg-[#A4161A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
                         >
                           <Send className="h-3.5 w-3.5" /> Resubmit
                         </button>
@@ -543,7 +536,7 @@ export default function OrganizerPage() {
                       {event.status === 'draft' && (
                         <button
                           onClick={() => handleDirectSubmit(event)}
-                          className="flex items-center gap-1 rounded-xl bg-[#B3202A] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#8E1A22] transition-colors cursor-pointer"
+                          className="flex items-center gap-1 rounded bg-[#A4161A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
                         >
                           <Send className="h-3.5 w-3.5" /> Submit
                         </button>
@@ -552,7 +545,7 @@ export default function OrganizerPage() {
                       {/* Edit Button */}
                       <button
                         onClick={() => handleOpenEdit(event)}
-                        className="flex items-center gap-1 rounded-xl border border-[#EADFD6] bg-white px-3 py-1.5 text-xs font-medium text-[#2B1B17] shadow-xs hover:bg-[#FFFAF5] hover:text-[#B3202A] cursor-pointer transition-colors"
+                        className="flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer transition-colors"
                       >
                         <Edit3 className="h-3.5 w-3.5" /> Edit
                       </button>
@@ -561,25 +554,22 @@ export default function OrganizerPage() {
                       {event.status === 'draft' && (
                         <button
                           onClick={() => handleDeleteDraft(event.id)}
-                          className="rounded-xl border border-red-200 bg-red-50 p-1.5 text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+                          className="rounded border border-red-200 bg-red-50 p-1.5 text-[#991B1B] hover:bg-red-100 transition-colors cursor-pointer"
                           title="Delete draft"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Rejection Reason Notice Box */}
+                  {/* Rejection Reason Box */}
                   {event.status === 'rejected' && event.rejection_reason && (
-                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50/80 p-3.5 text-xs text-red-900 flex items-start gap-2.5">
-                      <AlertCircle className="h-4 w-4 shrink-0 text-[#8E1A22] mt-0.5" />
+                    <div className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
                       <div>
-                        <span className="font-bold">Feedback from Student Welfare: </span>
+                        <span className="font-semibold">Review Remarks: </span>
                         <span>{event.rejection_reason}</span>
-                        <div className="mt-1 text-[11px] text-red-800">
-                          Please click &ldquo;Edit&rdquo; to adjust your proposal and resubmit for approval.
-                        </div>
                       </div>
                     </div>
                   )}
@@ -606,78 +596,72 @@ export default function OrganizerPage() {
 
       {/* Volunteer Applicants Management Modal */}
       {managingVolunteersEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl rounded-2xl border border-[#EADFD6] bg-white shadow-2xl my-8">
-            <div className="flex items-center justify-between border-b border-[#EADFD6] bg-[#FFFAF5] px-6 py-4">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#B3202A] text-white">
-                  <HandHelping className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-serif text-lg font-bold text-[#2B1B17]">
-                    Volunteer Applicants
-                  </h3>
-                  <p className="text-xs text-[#7A6A62]">
-                    {managingVolunteersEvent.title} • {managingVolunteersEvent.volunteers_needed || 0} volunteers needed
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="relative w-full max-w-2xl rounded-md border border-neutral-200 bg-white shadow-lg my-6">
+            <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-5 py-3.5">
+              <div>
+                <h3 className="text-base font-bold text-neutral-900">
+                  Volunteer Applicants
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  {managingVolunteersEvent.title} • {managingVolunteersEvent.volunteers_needed || 0} requested
+                </p>
               </div>
 
               <button
                 onClick={() => setManagingVolunteersEvent(null)}
-                className="rounded-lg p-1.5 text-[#7A6A62] hover:bg-[#EADFD6]/50 hover:text-[#2B1B17] transition-colors cursor-pointer"
+                className="rounded p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900 transition-colors cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="max-h-[60vh] overflow-y-auto p-6 space-y-4">
+            <div className="max-h-[60vh] overflow-y-auto p-5 space-y-3">
               {(!volunteersByEvent[managingVolunteersEvent.id] || volunteersByEvent[managingVolunteersEvent.id].length === 0) ? (
-                <div className="rounded-xl border border-dashed border-[#EADFD6] p-8 text-center text-xs text-[#7A6A62]">
-                  <HandHelping className="mx-auto h-8 w-8 text-[#EADFD6] mb-2" />
-                  No students have applied to volunteer for this event yet.
+                <div className="rounded border border-dashed border-neutral-300 p-6 text-center text-xs text-neutral-500">
+                  No volunteer applications received for this event.
                 </div>
               ) : (
-                <div className="divide-y divide-[#EADFD6] rounded-xl border border-[#EADFD6] overflow-hidden">
+                <div className="divide-y divide-neutral-200 rounded border border-neutral-200 overflow-hidden">
                   {volunteersByEvent[managingVolunteersEvent.id].map((vol) => (
-                    <div key={vol.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-                      <div className="space-y-1">
+                    <div key={vol.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+                      <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-[#2B1B17]">
+                          <span className="font-bold text-xs text-neutral-900">
                             {vol.student_name || vol.student_email}
                           </span>
                           {vol.status === 'accepted' ? (
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800 border border-emerald-200">
                               Accepted
                             </span>
                           ) : vol.status === 'rejected' ? (
-                            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[10px] font-bold text-red-800 border border-red-200">
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-[#991B1B] border border-red-200">
                               Rejected
                             </span>
                           ) : (
-                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 border border-amber-200">
                               Pending
                             </span>
                           )}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-[#7A6A62] font-mono">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 font-mono">
                           {vol.roll_no && <span>Roll: {vol.roll_no}</span>}
                           <span>{vol.student_email}</span>
-                          <span className="font-sans text-[11px] text-[#7A6A62]/80">
+                          <span className="font-sans text-[11px]">
                             Applied {new Date(vol.applied_at).toLocaleDateString('en-US')}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {vol.status !== 'accepted' && (
                           <button
                             onClick={() => handleUpdateVolunteerStatus(vol.id, 'accepted')}
                             disabled={updatingVolId === vol.id}
-                            className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-800 transition-colors disabled:opacity-50 cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors disabled:opacity-50 cursor-pointer"
                           >
-                            {updatingVolId === vol.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5" />}
+                            {updatingVolId === vol.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
                             Accept
                           </button>
                         )}
@@ -686,9 +670,9 @@ export default function OrganizerPage() {
                           <button
                             onClick={() => handleUpdateVolunteerStatus(vol.id, 'rejected')}
                             disabled={updatingVolId === vol.id}
-                            className="inline-flex items-center gap-1 rounded-xl border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100 transition-colors disabled:opacity-50 cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-[#991B1B] hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
                           >
-                            {updatingVolId === vol.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserX className="h-3.5 w-3.5" />}
+                            {updatingVolId === vol.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserX className="h-3 w-3" />}
                             Reject
                           </button>
                         )}
@@ -699,10 +683,10 @@ export default function OrganizerPage() {
               )}
             </div>
 
-            <div className="flex justify-end border-t border-[#EADFD6] bg-[#FFFAF5] px-6 py-3">
+            <div className="flex justify-end border-t border-neutral-200 bg-neutral-50 px-5 py-2.5">
               <button
                 onClick={() => setManagingVolunteersEvent(null)}
-                className="rounded-xl bg-[#2B1B17] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-black transition-colors cursor-pointer"
+                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer"
               >
                 Close
               </button>

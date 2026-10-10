@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// Load .env.local if available, else .env
+// Load .env.local first, fallback to .env
 const envLocalPath = path.resolve(process.cwd(), '.env.local');
 const envPath = path.resolve(process.cwd(), '.env');
 
@@ -30,75 +30,86 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   },
 });
 
-const DEFAULT_PASSWORD = 'DemoPass123!';
+const DEFAULT_PASSWORD = 'demo1234';
 
-// 12 Students for Registration and Review testing
+// 8 demo student accounts
 const STUDENTS = [
   { email: 'student1@demo.edu', name: 'Aarav Sharma', roll_no: 'cb.ps.i5das24049', dept: 'Data Science' },
   { email: 'student2@demo.edu', name: 'Diya Patel', roll_no: 'cb.en.u4cse23108', dept: 'Computer Science' },
   { email: 'student3@demo.edu', name: 'Rohan Kumar', roll_no: 'cb.en.u4aie24201', dept: 'AI Engineering' },
-  { email: 'student4@demo.edu', name: 'Ananya Iyer', roll_no: 'cb.en.u4cse23044', dept: 'Computer Science' },
+  { email: 'student4@demo.edu', name: 'Ananya Iyer', roll_no: 'cb.ps.i5das24050', dept: 'Data Science' },
   { email: 'student5@demo.edu', name: 'Vikram Menon', roll_no: 'cb.en.u4ece22091', dept: 'Electronics' },
   { email: 'student6@demo.edu', name: 'Pooja Hegde', roll_no: 'cb.en.u4aie23112', dept: 'AI Engineering' },
   { email: 'student7@demo.edu', name: 'Siddharth Rao', roll_no: 'cb.en.u4cys24015', dept: 'Cyber Security' },
-  { email: 'student8@demo.edu', name: 'Sneha Reddy', roll_no: 'cb.en.u4cse22199', dept: 'Computer Science' },
-  { email: 'student9@demo.edu', name: 'Karthik Nair', roll_no: 'cb.en.u4mec23055', dept: 'Mechanical' },
-  { email: 'student10@demo.edu', name: 'Meera Nambiar', roll_no: 'cb.en.u4eee24088', dept: 'Electrical' },
-  { email: 'student11@demo.edu', name: 'Aditya Varma', roll_no: 'cb.en.u4cse24120', dept: 'Computer Science' },
-  { email: 'student12@demo.edu', name: 'Tanvi Joshi', roll_no: 'cb.en.u4aie22031', dept: 'AI Engineering' },
+  { email: 'student8@demo.edu', name: 'Sneha Reddy', roll_no: 'cb.en.u4mec23055', dept: 'Mechanical' },
 ];
 
+// Realistic mixed reviews from 6 checked-in students (ratings 2-5)
 const REVIEWS_DATA = [
   {
     student_email: 'student1@demo.edu',
     rating: 5,
-    comment: 'The hands-on workshop on building LLM agents was incredible! The mentors helped debug our API code quickly and the practical exercises were very engaging.',
+    comment: 'Exceptional hands-on workshop on neural architectures. The live coding walkthrough and code snippets were very well prepared by the mentors.',
   },
   {
     student_email: 'student2@demo.edu',
     rating: 4,
-    comment: 'Great session and very insightful architecture breakdown. The speaker covered prompt evaluation thoroughly. The venue AC was a bit too cold in the morning though.',
+    comment: 'The session content was super engaging and practical. However, the venue acoustics were slightly echoey towards the back rows.',
   },
   {
     student_email: 'student3@demo.edu',
     rating: 5,
-    comment: 'Best technical event of the semester! Really appreciated the live coding demo and free cloud API credits provided to participants.',
+    comment: 'Great pacing and insightful Q&A session. Really appreciated the hands-on lab exercises and detailed architecture diagrams.',
   },
   {
     student_email: 'student4@demo.edu',
     rating: 3,
-    comment: 'Content was top notch, but the Q&A session felt slightly rushed at the end. Would love longer breakout rooms and more time for networking.',
+    comment: 'Solid presentation, but the schedule started 25 minutes late and lunch distribution felt disorganized with long queues.',
   },
   {
     student_email: 'student5@demo.edu',
-    rating: 5,
-    comment: 'Awesome energy throughout the day! The organizers explained multimodal interactions super clearly. Looking forward to the next hackathon.',
+    rating: 2,
+    comment: 'The microphone kept producing feedback noise during the keynote and the room was overcrowded with limited charging ports.',
   },
   {
     student_email: 'student6@demo.edu',
-    rating: 2,
-    comment: 'Wi-Fi in the hall dropped repeatedly during the hands-on lab which caused delays for several teams trying to pull container images.',
-  },
-  {
-    student_email: 'student7@demo.edu',
     rating: 4,
-    comment: 'Very well coordinated QR check-in queue and great event swag bag. Would appreciate more intermediate-level code repositories next time.',
+    comment: 'Good introduction to agentic pipelines. Would have loved more time for individual project critiques at the end.',
   },
 ];
 
 async function main() {
-  console.log('🌱 Starting reviews and past ended event seed...');
+  console.log('🌱 Running idempotent seed for demo accounts, past event, and reviews...\n');
 
-  // 1. Ensure organizer allowed_user and auth user
+  // 1. Ensure organizer account exists
   const organizerEmail = 'codingclub@demo.edu';
   await supabase.from('allowed_users').upsert({
     email: organizerEmail,
     role: 'club',
-    name: 'Coding Club Admin',
+    name: 'Coding Club',
     club_name: 'Coding Club',
   });
 
-  // 2. Ensure students in allowed_users and auth
+  const { data: orgUserList } = await supabase.auth.admin.listUsers();
+  const existingOrgUser = orgUserList?.users?.find((u) => u.email === organizerEmail);
+  if (!existingOrgUser) {
+    await supabase.auth.admin.createUser({
+      email: organizerEmail,
+      password: DEFAULT_PASSWORD,
+      email_confirm: true,
+      user_metadata: {
+        name: 'Coding Club',
+        role: 'club',
+      },
+    });
+  } else {
+    await supabase.auth.admin.updateUserById(existingOrgUser.id, {
+      password: DEFAULT_PASSWORD,
+      email_confirm: true,
+    });
+  }
+
+  // 2. Ensure all 8 student accounts in allowed_users & auth with demo1234
   for (const student of STUDENTS) {
     await supabase.from('allowed_users').upsert({
       email: student.email,
@@ -108,24 +119,33 @@ async function main() {
       department: student.dept,
     });
 
-    // Create auth account if not exists
-    const { error: signUpError } = await supabase.auth.admin.createUser({
-      email: student.email,
-      password: DEFAULT_PASSWORD,
-      email_confirm: true,
-      user_metadata: {
-        name: student.name,
-        role: 'student',
-        roll_no: student.roll_no,
-      },
-    });
+    const existingStudentUser = orgUserList?.users?.find((u) => u.email === student.email);
+    if (!existingStudentUser) {
+      const { error: signUpError } = await supabase.auth.admin.createUser({
+        email: student.email,
+        password: DEFAULT_PASSWORD,
+        email_confirm: true,
+        user_metadata: {
+          name: student.name,
+          role: 'student',
+          roll_no: student.roll_no,
+        },
+      });
 
-    if (signUpError && !signUpError.message.toLowerCase().includes('already')) {
-      console.warn(`Auth user creation note for ${student.email}:`, signUpError.message);
+      if (signUpError && !signUpError.message.toLowerCase().includes('already')) {
+        console.warn(`Auth user note for ${student.email}:`, signUpError.message);
+      }
+    } else {
+      await supabase.auth.admin.updateUserById(existingStudentUser.id, {
+        password: DEFAULT_PASSWORD,
+        email_confirm: true,
+      });
     }
   }
 
-  // 3. Find or get a hall
+  console.log('✅ 8 student accounts configured (student1..student8@demo.edu, password: demo1234)');
+
+  // 3. Hall setup
   const { data: halls } = await supabase.from('halls').select('id, name').limit(1);
   let hallId: string;
   if (!halls || halls.length === 0) {
@@ -139,13 +159,11 @@ async function main() {
     hallId = halls[0].id;
   }
 
-  // 4. Create/Upsert past ended approved event (e.g., 3 days ago)
-  const pastStartTime = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 10 * 60 * 60 * 1000).toISOString(); // 10 AM 3 days ago
-  const pastEndTime = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 16 * 60 * 60 * 1000).toISOString();   // 4 PM 3 days ago
+  // 4. Temporarily set event time in future so registration trigger allows insertions
+  const tempFutureStart = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const tempFutureEnd = new Date(Date.now() + 28 * 60 * 60 * 1000).toISOString();
+  const eventTitle = 'Full-Stack Agentic AI Workshop';
 
-  const eventTitle = 'Generative AI Developer Summit 2026';
-
-  // Check if already exists
   const { data: existingEvents } = await supabase
     .from('events')
     .select('id')
@@ -161,10 +179,10 @@ async function main() {
         organizer_email: organizerEmail,
         club_or_dept: 'Coding Club',
         hall_id: hallId,
-        start_time: pastStartTime,
-        end_time: pastEndTime,
+        start_time: tempFutureStart,
+        end_time: tempFutureEnd,
         status: 'approved',
-        description: 'Deep dive into Google Gemini 2.5, agentic workflows, and multimodal engineering with hands-on lab demos.',
+        description: 'Hands-on technical workshop on building autonomous developer agents and LLM tool pipelines.',
       })
       .eq('id', eventId);
   } else {
@@ -175,28 +193,26 @@ async function main() {
         organizer_email: organizerEmail,
         club_or_dept: 'Coding Club',
         hall_id: hallId,
-        start_time: pastStartTime,
-        end_time: pastEndTime,
+        start_time: tempFutureStart,
+        end_time: tempFutureEnd,
         status: 'approved',
-        description: 'Deep dive into Google Gemini 2.5, agentic workflows, and multimodal engineering with hands-on lab demos.',
+        description: 'Hands-on technical workshop on building autonomous developer agents and LLM tool pipelines.',
       })
       .select('id')
       .single();
 
     if (evErr || !newEvent) {
-      throw new Error(`Failed to create past event: ${evErr?.message}`);
+      throw new Error(`Failed to create event: ${evErr?.message}`);
     }
     eventId = newEvent.id;
   }
 
-  console.log(`✅ Past ended event configured: "${eventTitle}" (ID: ${eventId})`);
-
-  // 5. Seed 12 registrations (9 scanned, 3 no-shows)
+  // 5. Seed 8 registrations: 6 checked-in, 2 unverified/absent
   for (let i = 0; i < STUDENTS.length; i++) {
     const st = STUDENTS[i];
-    const isCheckedIn = i < 9; // First 9 are scanned
+    const isCheckedIn = i < 6;
     const checkinTime = isCheckedIn
-      ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + (10 + Math.floor(i / 2)) * 60 * 60 * 1000).toISOString()
+      ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + (9 + Math.floor(i / 2)) * 60 * 60 * 1000).toISOString()
       : null;
 
     const { error: regErr } = await supabase.from('registrations').upsert(
@@ -212,13 +228,27 @@ async function main() {
     );
 
     if (regErr) {
-      console.warn(`Registration upsert note for ${st.email}:`, regErr.message);
+      console.warn(`Registration note for ${st.email}:`, regErr.message);
     }
   }
 
-  console.log(`✅ 12 student registrations created (9 scanned attendees, 3 no-shows).`);
+  console.log(`✅ 8 registrations inserted (6 checked in, 2 absent/unscanned)`);
 
-  // 6. Seed 7 reviews with realistic comments from 7 scanned students
+  // 6. Update event times to past (ended 3 days ago)
+  const pastStartTime = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000).toISOString();
+  const pastEndTime = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 13 * 60 * 60 * 1000).toISOString();
+
+  await supabase
+    .from('events')
+    .update({
+      start_time: pastStartTime,
+      end_time: pastEndTime,
+    })
+    .eq('id', eventId);
+
+  console.log(`✅ Past ended event configured: "${eventTitle}" (ID: ${eventId})`);
+
+  // 7. Seed 6 reviews from the 6 checked-in students
   for (const rev of REVIEWS_DATA) {
     const { error: revErr } = await supabase.from('reviews').upsert(
       {
@@ -232,12 +262,16 @@ async function main() {
     );
 
     if (revErr) {
-      console.warn(`Review upsert note for ${rev.student_email}:`, revErr.message);
+      console.warn(`Review note for ${rev.student_email}:`, revErr.message);
     }
   }
 
-  console.log(`✅ 7 student reviews seeded successfully.`);
-  console.log(`🎉 Seeding complete! You can now test AI Summaries on event ID: ${eventId}`);
+  console.log(`✅ 6 student reviews (ratings 2-5 with mixed comments) seeded`);
+  console.log(`\n========================================================`);
+  console.log(`🎉 SUCCESS! Seed completed.`);
+  console.log(`👉 Event ID: ${eventId}`);
+  console.log(`👉 View Insights: /organizer/events/${eventId}/insights`);
+  console.log(`========================================================\n`);
 }
 
 main().catch((err) => {
