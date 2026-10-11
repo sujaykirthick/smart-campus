@@ -5,15 +5,24 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import type { Registration, AllowedUser, Volunteer, Review } from '@/lib/types';
+import type { Registration, AllowedUser, Volunteer, Review, CampusEvent } from '@/lib/types';
 import { QRCodeSVG } from 'qrcode.react';
+import {
+  PageHeader,
+  Card,
+  StatusBadge,
+  Button,
+  Tabs,
+  EmptyState,
+  SkeletonCard,
+  useToast,
+} from '@/components/ui';
+import { formatEventDate, formatHall } from '@/lib/format';
 import {
   QrCode,
   Calendar,
   MapPin,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Building2,
   Trash2,
   RefreshCw,
@@ -24,36 +33,53 @@ import {
   Camera,
   Star,
   Loader2,
+  CheckCircle2,
+  Sparkles,
+  ExternalLink,
+  ChevronRight,
+  Shield,
 } from 'lucide-react';
 
 interface WaitlistRankMap {
-  [registrationId: string]: number; // 1-indexed position
+  [registrationId: string]: number;
 }
 
 const MemoizedQRCode = React.memo(function MemoizedQRCode({ token }: { token: string }) {
   return (
     <QRCodeSVG
       value={token}
-      size={200}
+      size={260}
       level="H"
       includeMargin={true}
     />
   );
 });
 
+type SectionKey = 'registered' | 'waitlist' | 'volunteering' | 'hosting' | 'past';
+
 export default function MyEventsPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<AllowedUser | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [volunteerRoles, setVolunteerRoles] = useState<Volunteer[]>([]);
+  const [hostedEvents, setHostedEvents] = useState<CampusEvent[]>([]);
   const [waitlistRanks, setWaitlistRanks] = useState<WaitlistRankMap>({});
   const [userReviews, setUserReviews] = useState<Record<string, Review>>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [activeViewTab, setActiveViewTab] = useState<'passes' | 'volunteering'>('passes');
+  const [activeTab, setActiveTab] = useState<SectionKey>('registered');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Review Modal State
+  const [reviewingEvent, setReviewingEvent] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -64,21 +90,10 @@ export default function MyEventsPage() {
     return registrations.find((r) => r.id === selectedTicketId) || null;
   }, [registrations, selectedTicketId]);
 
-  // Review Modal State
-  const [reviewingEvent, setReviewingEvent] = useState<{
-    id: string;
-    title: string;
-  } | null>(null);
-  const [reviewRating, setReviewRating] = useState<number>(5);
-  const [reviewComment, setReviewComment] = useState<string>('');
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
   const supabase = useMemo(() => createClient(), []);
 
   const loadData = useCallback(async (isSilent = false) => {
     if (!isSilent) setInitialLoading(true);
-    setErrorMsg(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
@@ -103,8 +118,8 @@ export default function MyEventsPage() {
       };
       setProfile(profileData);
 
-      // Fetch registrations, volunteers, and student's reviews
-      const [regsRes, volsRes, reviewsRes] = await Promise.all([
+      // Fetch registrations, volunteers, hosted events, and student's reviews
+      const [regsRes, volsRes, hostedRes, reviewsRes] = await Promise.all([
         supabase
           .from('registrations')
           .select(`
@@ -163,6 +178,37 @@ export default function MyEventsPage() {
           .order('applied_at', { ascending: false }),
 
         supabase
+          .from('events')
+          .select(`
+            id,
+            title,
+            description,
+            start_time,
+            end_time,
+            status,
+            poster_url,
+            volunteers_needed,
+            club_or_dept,
+            halls:halls!events_hall_id_fkey (
+              id,
+              name,
+              capacity,
+              location
+            ),
+            fests (
+              id,
+              name
+            ),
+            organizations (
+              id,
+              name,
+              type
+            )
+          `)
+          .eq('organizer_email', user.email)
+          .order('start_time', { ascending: false }),
+
+        supabase
           .from('reviews')
           .select('*')
           .eq('student_email', user.email),
@@ -174,18 +220,14 @@ export default function MyEventsPage() {
         (r) => !r.events || r.student_email?.toLowerCase().trim() !== r.events.organizer_email?.toLowerCase().trim()
       );
 
-      // Merge registrations smoothly without unmounting list
-      setRegistrations((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(loadedRegs)) return prev;
-        return loadedRegs;
-      });
+      setRegistrations(loadedRegs);
 
       if (volsRes.data) {
-        const loadedVols = volsRes.data as unknown as Volunteer[];
-        setVolunteerRoles((prev) => {
-          if (JSON.stringify(prev) === JSON.stringify(loadedVols)) return prev;
-          return loadedVols;
-        });
+        setVolunteerRoles(volsRes.data as unknown as Volunteer[]);
+      }
+
+      if (hostedRes.data) {
+        setHostedEvents(hostedRes.data as unknown as CampusEvent[]);
       }
 
       if (reviewsRes.data) {
@@ -220,40 +262,27 @@ export default function MyEventsPage() {
       }
     } catch (err: any) {
       console.error('Error fetching registrations:', err);
-      setErrorMsg(err?.message || 'Failed to load your registrations.');
+      showToast('error', err?.message || 'Failed to load passes');
     } finally {
       if (!isSilent) setInitialLoading(false);
     }
-  }, [supabase, router]);
+  }, [supabase, router, showToast]);
 
-  // Initial fetch only
   useEffect(() => {
     loadData(false);
   }, [loadData]);
 
-  // Background polling every 30 seconds and on window focus; paused while QR modal is open
+  // Background polling every 30 seconds
   useEffect(() => {
     if (selectedTicketId !== null) return;
-
     const interval = setInterval(() => {
       loadData(true);
     }, 30000);
-
-    const onFocus = () => {
-      if (selectedTicketId === null) {
-        loadData(true);
-      }
-    };
-    window.addEventListener('focus', onFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-    };
+    return () => clearInterval(interval);
   }, [loadData, selectedTicketId]);
 
   const handleCancelRegistration = async (regId: string, eventTitle: string, isWaitlist: boolean) => {
-    const actionLabel = isWaitlist ? 'leave the waitlist for' : 'cancel registration for';
+    const actionLabel = isWaitlist ? 'leave the waitlist for' : 'cancel pass for';
     if (!confirm(`Are you sure you want to ${actionLabel} "${eventTitle}"?`)) return;
 
     setCancellingId(regId);
@@ -268,9 +297,10 @@ export default function MyEventsPage() {
       if (selectedTicketId === regId) {
         setSelectedTicketId(null);
       }
+      showToast('success', isWaitlist ? 'Left waitlist' : 'Pass cancelled');
       loadData(true);
     } catch (err: any) {
-      alert(err?.message || 'Failed to cancel registration.');
+      showToast('error', err?.message || 'Failed to cancel');
     } finally {
       setCancellingId(null);
     }
@@ -280,7 +310,6 @@ export default function MyEventsPage() {
     const existing = userReviews[eventId];
     setReviewRating(existing?.rating || 5);
     setReviewComment(existing?.comment || '');
-    setReviewError(null);
     setReviewingEvent({ id: eventId, title: eventTitle });
   };
 
@@ -288,7 +317,6 @@ export default function MyEventsPage() {
     e.preventDefault();
     if (!reviewingEvent || !profile) return;
     setSubmittingReview(true);
-    setReviewError(null);
 
     try {
       const existing = userReviews[reviewingEvent.id];
@@ -315,498 +343,610 @@ export default function MyEventsPage() {
         if (error) throw error;
       }
 
+      showToast('success', 'Feedback submitted. Thank you!');
       setReviewingEvent(null);
-      loadData();
+      loadData(true);
     } catch (err: any) {
       console.error('Error submitting review:', err);
-      setReviewError(err?.message || 'Failed to submit review.');
+      showToast('error', err?.message || 'Failed to submit review');
     } finally {
       setSubmittingReview(false);
     }
   };
 
-  const formatEventDate = (startIso?: string, endIso?: string) => {
-    if (!startIso || !endIso) return { dateStr: '', startTimeStr: '', endTimeStr: '' };
-    const s = new Date(startIso);
-    const e = new Date(endIso);
-
-    const dateStr = s.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+  // Group items by section
+  const now = Date.now();
+  const registeredPasses = useMemo(() => {
+    return registrations.filter((r) => {
+      const isPast = r.events?.end_time ? new Date(r.events.end_time).getTime() < now : false;
+      return r.status === 'confirmed' && !isPast;
     });
+  }, [registrations, now]);
 
-    const startTimeStr = s.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
+  const waitlistPasses = useMemo(() => {
+    return registrations.filter((r) => {
+      const isPast = r.events?.end_time ? new Date(r.events.end_time).getTime() < now : false;
+      return r.status === 'waitlisted' && !isPast;
     });
+  }, [registrations, now]);
 
-    const endTimeStr = e.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
+  const pastEvents = useMemo(() => {
+    return registrations.filter((r) => {
+      return r.events?.end_time ? new Date(r.events.end_time).getTime() < now : false;
     });
+  }, [registrations, now]);
 
-    return { dateStr, startTimeStr, endTimeStr };
-  };
+  const tabsConfig = [
+    { id: 'registered', label: 'Registered', count: registeredPasses.length },
+    { id: 'waitlist', label: 'Waitlist', count: waitlistPasses.length },
+    { id: 'volunteering', label: 'Volunteering', count: volunteerRoles.length },
+    { id: 'hosting', label: 'Hosting', count: hostedEvents.length },
+    { id: 'past', label: 'Past', count: pastEvents.length },
+  ];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      {/* Header Bar */}
-      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
-              My Event Passes
-            </h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              Entry passes, waitlist status, and volunteer assignments.
-            </p>
-          </div>
-
+    <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 space-y-6">
+      {/* Page Header */}
+      <PageHeader
+        title="My Events & Passes"
+        description={
+          profile?.roll_no
+            ? `Signed in as ${profile.name || profile.email} (${profile.roll_no})`
+            : `Signed in as ${profile?.name || profile?.email}`
+        }
+        actions={
           <div className="flex items-center gap-2">
-            <Link
-              href="/events"
-              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
-            >
-              <Compass className="h-3.5 w-3.5" /> Browse Events
+            <Link href="/events">
+              <Button variant="secondary" size="sm">
+                <Compass className="h-4 w-4" /> Browse Events
+              </Button>
             </Link>
-
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => loadData(false)}
-              className="rounded-md border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
-              title="Refresh passes"
+              aria-label="Refresh events"
             >
               <RefreshCw className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
-        </div>
+        }
+      />
 
-        {/* User identification bar */}
-        {profile && (
-          <div className="mt-4 pt-4 border-t border-neutral-200 flex flex-wrap items-center gap-4 text-xs text-neutral-600">
-            <div>
-              <span className="text-neutral-400">Student: </span>
-              <span className="font-semibold text-neutral-900">{profile.name || profile.email}</span>
-            </div>
-            {profile.roll_no && (
-              <div>
-                <span className="text-neutral-400">Roll No: </span>
-                <span className="font-mono font-semibold text-[#A4161A]">{profile.roll_no}</span>
-              </div>
-            )}
-            <div>
-              <span className="text-neutral-400">Email: </span>
-              <span className="font-mono text-neutral-800">{profile.email}</span>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Tabs Switcher */}
+      <Tabs
+        tabs={tabsConfig}
+        activeTab={activeTab}
+        onChange={(id) => setActiveTab(id as SectionKey)}
+        variant="underline"
+      />
 
-      {/* Underlined Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-neutral-200">
-        <button
-          onClick={() => setActiveViewTab('passes')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
-            activeViewTab === 'passes'
-              ? 'border-[#A4161A] text-[#A4161A] font-semibold'
-              : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
-          }`}
-        >
-          <QrCode className="h-3.5 w-3.5" />
-          Event Passes ({registrations.length})
-        </button>
-
-        <button
-          onClick={() => setActiveViewTab('volunteering')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
-            activeViewTab === 'volunteering'
-              ? 'border-[#A4161A] text-[#A4161A] font-semibold'
-              : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
-          }`}
-        >
-          <HandHelping className="h-3.5 w-3.5" />
-          Volunteer Roles ({volunteerRoles.length})
-        </button>
-      </div>
-
-      {errorMsg && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {/* 1. PASSES VIEW */}
-      {activeViewTab === 'passes' && (
-        <>
+      {/* 1. REGISTERED SECTION */}
+      {activeTab === 'registered' && (
+        <section aria-label="Registered Passes">
           {initialLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-40 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
-              ))}
+              <SkeletonCard />
+              <SkeletonCard />
             </div>
-          ) : registrations.length === 0 ? (
-            <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
-              <QrCode className="mx-auto h-10 w-10 text-neutral-300" />
-              <h3 className="mt-3 text-base font-semibold text-neutral-900">
-                No registered events
-              </h3>
-              <p className="mt-1 text-xs text-neutral-500">
-                Browse available campus events to register and receive digital QR passes.
-              </p>
-              <Link
-                href="/events"
-                className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
-              >
-                <Compass className="h-3.5 w-3.5" /> Explore Events
-              </Link>
-            </div>
+          ) : registeredPasses.length === 0 ? (
+            <EmptyState
+              icon={<QrCode className="h-6 w-6 text-neutral-400" />}
+              title="No active event passes"
+              description="Explore campus events to register and receive your high-contrast digital QR pass."
+              action={
+                <Link href="/events">
+                  <Button variant="primary" size="sm">
+                    <Compass className="h-4 w-4" /> Browse Events
+                  </Button>
+                </Link>
+              }
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {registrations.map((reg) => {
+              {registeredPasses.map((reg) => {
                 const ev = reg.events;
                 if (!ev) return null;
-
-                const { dateStr, startTimeStr, endTimeStr } = formatEventDate(ev.start_time, ev.end_time);
                 const isCheckedIn = !!reg.checked_in_at;
-                const isWaitlisted = reg.status === 'waitlisted';
-                const waitlistRank = waitlistRanks[reg.id] || 1;
-                const evStartMs = new Date(ev.start_time).getTime();
-                const evEndMs = new Date(ev.end_time).getTime();
-                const hasStarted = Date.now() >= evStartMs;
-                const hasEnded = Date.now() >= evEndMs;
-                const userReview = userReviews[ev.id];
 
                 return (
-                  <div
-                    key={reg.id}
-                    className="flex flex-col justify-between overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
-                  >
-                    <div className="p-4 space-y-3">
+                  <Card key={reg.id} className="flex flex-col justify-between">
+                    <div className="p-4 sm:p-5 space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            {isWaitlisted ? (
-                              <span className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900">
-                                <Hourglass className="h-3 w-3" /> Waitlist #{waitlistRank}
-                              </span>
-                            ) : isCheckedIn ? (
-                              <span className="inline-flex items-center gap-1 rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
-                                <CheckCircle2 className="h-3 w-3" /> Checked In
-                              </span>
+                            {isCheckedIn ? (
+                              <StatusBadge status="approved" label="Checked In" />
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded bg-neutral-100 border border-neutral-200 px-2 py-0.5 text-[10px] font-medium text-neutral-800">
-                                Confirmed Pass
-                              </span>
+                              <StatusBadge status="approved" label="Confirmed Pass" />
                             )}
-
                             {ev.fests && (
-                              <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                              <span className="rounded bg-neutral-900 px-2 py-0.5 text-[11px] font-semibold text-white">
                                 {ev.fests.name}
                               </span>
                             )}
-
-                            {hasEnded && (
-                              <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-500 font-medium">
-                                Ended
-                              </span>
-                            )}
                           </div>
-
-                          <h3 className="text-base font-bold text-neutral-900 pt-0.5">
+                          <h2 className="text-base font-bold text-neutral-900 line-clamp-1">
                             {ev.title}
-                          </h3>
-                          <p className="text-xs text-neutral-500">
+                          </h2>
+                          <p className="text-xs text-neutral-500 font-medium">
                             {ev.club_or_dept || 'Campus'}
                           </p>
                         </div>
 
                         {/* QR Thumbnail */}
-                        {!isWaitlisted && (
-                          <button
-                            onClick={() => setSelectedTicketId(reg.id)}
-                            className="p-1.5 rounded border border-neutral-200 bg-white hover:border-[#A4161A] shadow-xs cursor-pointer shrink-0"
-                            title="View QR pass"
-                          >
-                            <QRCodeSVG value={reg.qr_token} size={52} level="M" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setSelectedTicketId(reg.id)}
+                          className="p-1.5 rounded-lg border border-neutral-200 bg-white hover:border-[#A4161A] shadow-xs cursor-pointer shrink-0 transition-colors"
+                          title="View large QR pass"
+                          aria-label="View QR pass"
+                        >
+                          <QRCodeSVG value={reg.qr_token} size={50} level="M" />
+                        </button>
                       </div>
 
-                      {/* Waitlist Notice */}
-                      {isWaitlisted && (
-                        <div className="rounded border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 space-y-1">
-                          <div className="font-semibold flex items-center gap-1.5">
-                            <Hourglass className="h-3.5 w-3.5 text-amber-700" />
-                            Waitlist Position #{waitlistRank}
-                          </div>
-                          <p className="text-[11px] text-amber-800">
-                            You will be automatically confirmed if another attendee cancels before start time.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Metadata */}
-                      <div className="space-y-1 pt-2 border-t border-neutral-100 text-xs text-neutral-600">
-                        <div className="flex items-center gap-1.5">
+                      {/* Venue & Timing */}
+                      <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
+                        <div className="flex items-center gap-2">
                           <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
-                          <span>{ev.halls?.name || 'Campus Venue'}</span>
+                          <span className="font-medium text-neutral-800">
+                            {formatHall(ev.halls?.name, ev.halls?.capacity)}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-neutral-500 font-mono">
+                        <div className="flex items-center gap-2 text-neutral-600">
                           <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-                          <span>{dateStr} • {startTimeStr} – {endTimeStr}</span>
+                          <span>{formatEventDate(ev.start_time, ev.end_time)}</span>
                         </div>
                       </div>
 
                       {isCheckedIn && (
-                        <div className="rounded bg-emerald-50 border border-emerald-200 p-2 text-[11px] text-emerald-800 flex items-center gap-1.5 font-medium">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                          <span>Checked in at {new Date(reg.checked_in_at!).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-                        </div>
-                      )}
-
-                      {/* Review Section */}
-                      {isCheckedIn && hasEnded && (
-                        <div className="rounded border border-neutral-200 bg-neutral-50 p-2.5 text-xs space-y-1.5">
-                          {userReview ? (
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="flex items-center gap-1 text-amber-600 font-semibold">
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`h-3 w-3 ${
-                                        i < userReview.rating
-                                          ? 'fill-amber-500 text-amber-500'
-                                          : 'text-neutral-300'
-                                      }`}
-                                    />
-                                  ))}
-                                  <span className="text-neutral-700 ml-1 font-mono text-[11px]">
-                                    ({userReview.rating}/5)
-                                  </span>
-                                </div>
-                                {userReview.comment && (
-                                  <p className="mt-1 text-neutral-600 text-[11px] italic line-clamp-2">
-                                    &ldquo;{userReview.comment}&rdquo;
-                                  </p>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => handleOpenReviewModal(ev.id, ev.title)}
-                                className="text-[11px] font-semibold text-[#A4161A] hover:underline cursor-pointer shrink-0"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-neutral-600 text-[11px]">
-                                Submit event feedback
-                              </span>
-                              <button
-                                onClick={() => handleOpenReviewModal(ev.id, ev.title)}
-                                className="inline-flex items-center gap-1 rounded bg-[#A4161A] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer shrink-0"
-                              >
-                                <Star className="h-3 w-3 fill-white" />
-                                Review
-                              </button>
-                            </div>
-                          )}
+                        <div className="rounded-md bg-emerald-50 border border-emerald-200 p-2 text-xs text-emerald-800 flex items-center gap-1.5 font-medium">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
+                          <span>
+                            Verified at{' '}
+                            {new Date(reg.checked_in_at!).toLocaleTimeString('en-US', {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true,
+                            })}
+                          </span>
                         </div>
                       )}
                     </div>
 
                     {/* Card Actions */}
                     <div className="p-3 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between gap-2">
-                      {!isWaitlisted ? (
-                        <button
-                          onClick={() => setSelectedTicketId(reg.id)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded bg-[#A4161A] py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
-                        >
-                          <QrCode className="h-3.5 w-3.5" />
-                          View Pass
-                        </button>
-                      ) : (
-                        <div className="text-xs text-neutral-500 font-medium">
-                          Pass locked on waitlist
-                        </div>
-                      )}
-
-                      {!hasStarted && !isCheckedIn && (
-                        <button
-                          onClick={() => handleCancelRegistration(reg.id, ev.title, isWaitlisted)}
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setSelectedTicketId(reg.id)}
+                      >
+                        <QrCode className="h-4 w-4" /> View QR Pass
+                      </Button>
+                      {!isCheckedIn && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCancelRegistration(reg.id, ev.title, false)}
                           disabled={cancellingId === reg.id}
-                          className="rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-[#991B1B] hover:bg-red-50 transition-colors cursor-pointer"
-                          title={isWaitlisted ? 'Leave Waitlist' : 'Cancel Registration'}
+                          aria-label="Cancel Pass"
+                          title="Cancel Pass"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
           )}
-        </>
+        </section>
       )}
 
-      {/* 2. VOLUNTEER ROLES VIEW */}
-      {activeViewTab === 'volunteering' && (
-        <div>
-          {volunteerRoles.length === 0 ? (
-            <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
-              <HandHelping className="mx-auto h-10 w-10 text-neutral-300" />
-              <h3 className="mt-3 text-base font-semibold text-neutral-900">
-                No volunteer applications
-              </h3>
-              <p className="mt-1 text-xs text-neutral-500">
-                Apply for volunteer openings on upcoming campus events.
-              </p>
-              <Link
-                href="/events"
-                className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
-              >
-                <Compass className="h-3.5 w-3.5" /> Find Opportunities
-              </Link>
+      {/* 2. WAITLIST SECTION */}
+      {activeTab === 'waitlist' && (
+        <section aria-label="Waitlisted Events">
+          {initialLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SkeletonCard />
+              <SkeletonCard />
             </div>
+          ) : waitlistPasses.length === 0 ? (
+            <EmptyState
+              icon={<Hourglass className="h-6 w-6 text-neutral-400" />}
+              title="No waitlisted events"
+              description="When events reach venue capacity, joining the waitlist queues your ticket automatically."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {waitlistPasses.map((reg) => {
+                const ev = reg.events;
+                if (!ev) return null;
+                const rank = waitlistRanks[reg.id] || 1;
+
+                return (
+                  <Card key={reg.id} className="flex flex-col justify-between">
+                    <div className="p-4 sm:p-5 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <StatusBadge status="waitlisted" label={`Waitlist #${rank}`} />
+                          <h2 className="text-base font-bold text-neutral-900 line-clamp-1 pt-1">
+                            {ev.title}
+                          </h2>
+                          <p className="text-xs text-neutral-500 font-medium">
+                            {ev.club_or_dept || 'Campus'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
+                        <div className="font-semibold flex items-center gap-1.5">
+                          <Hourglass className="h-3.5 w-3.5 text-amber-700" />
+                          Position #{rank} in queue
+                        </div>
+                        <p className="text-[11px] text-amber-800">
+                          If an attendee cancels before event start time, your pass will be confirmed automatically.
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                          <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-neutral-600">
+                          <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+                          <span>{formatEventDate(ev.start_time, ev.end_time)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between">
+                      <span className="text-xs text-neutral-500 font-medium">
+                        Pass locked while on waitlist
+                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCancelRegistration(reg.id, ev.title, true)}
+                        disabled={cancellingId === reg.id}
+                      >
+                        <Trash2 className="h-4 w-4" /> Leave Waitlist
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 3. VOLUNTEERING SECTION */}
+      {activeTab === 'volunteering' && (
+        <section aria-label="Volunteer Roles">
+          {initialLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          ) : volunteerRoles.length === 0 ? (
+            <EmptyState
+              icon={<HandHelping className="h-6 w-6 text-neutral-400" />}
+              title="No volunteer applications"
+              description="Apply for volunteer duties on upcoming campus events to help coordinate and scan attendees."
+              action={
+                <Link href="/events">
+                  <Button variant="primary" size="sm">
+                    <Compass className="h-4 w-4" /> Find Opportunities
+                  </Button>
+                </Link>
+              }
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {volunteerRoles.map((vol) => {
                 const ev = vol.events;
                 if (!ev) return null;
-
-                const { dateStr, startTimeStr, endTimeStr } = formatEventDate(ev.start_time, ev.end_time);
                 const isAccepted = vol.status === 'accepted';
 
                 return (
-                  <div
-                    key={vol.id}
-                    className="flex flex-col justify-between overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
-                  >
-                    <div className="p-4 space-y-3">
+                  <Card key={vol.id} className="flex flex-col justify-between">
+                    <div className="p-4 sm:p-5 space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div>
                             {isAccepted ? (
-                              <span className="inline-flex items-center gap-1 rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
-                                <CheckCircle2 className="h-3 w-3" /> Accepted
-                              </span>
+                              <StatusBadge status="approved" label="Accepted Volunteer" />
                             ) : vol.status === 'rejected' ? (
-                              <span className="inline-flex items-center gap-1 rounded bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-medium text-[#991B1B]">
-                                <AlertCircle className="h-3 w-3" /> Not selected
-                              </span>
+                              <StatusBadge status="rejected" label="Not Selected" />
                             ) : vol.status === 'withdrawn' ? (
-                              <span className="inline-flex items-center gap-1 rounded bg-neutral-100 border border-neutral-300 px-2 py-0.5 text-[10px] font-medium text-neutral-600">
-                                Withdrawn
-                              </span>
+                              <StatusBadge status="draft" label="Withdrawn" />
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900">
-                                <Clock className="h-3 w-3" /> Applied (pending)
-                              </span>
+                              <StatusBadge status="pending" label="Pending Review" />
                             )}
                           </div>
-
-                          <h3 className="text-base font-bold text-neutral-900 pt-0.5">
+                          <h2 className="text-base font-bold text-neutral-900 line-clamp-1 pt-1">
                             {ev.title}
-                          </h3>
-                          <p className="text-xs text-neutral-500">
+                          </h2>
+                          <p className="text-xs text-neutral-500 font-medium">
                             Coordinator: {ev.organizer_email}
                           </p>
                         </div>
 
-                        <div className="flex h-8 w-8 items-center justify-center rounded bg-neutral-100 text-[#A4161A] shrink-0">
-                          <HandHelping className="h-4 w-4" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-[#A4161A] shrink-0">
+                          <HandHelping className="h-5 w-5" />
                         </div>
                       </div>
 
-                      <div className="space-y-1 pt-2 border-t border-neutral-100 text-xs text-neutral-600">
-                        <div className="flex items-center gap-1.5">
+                      <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
+                        <div className="flex items-center gap-2">
                           <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
-                          <span>{ev.halls?.name || 'Campus Venue'}</span>
+                          <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-500">
+                        <div className="flex items-center gap-2 text-neutral-600">
                           <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-                          <span>{dateStr} • {startTimeStr} – {endTimeStr}</span>
+                          <span>{formatEventDate(ev.start_time, ev.end_time)}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="p-3 bg-neutral-50 border-t border-neutral-200">
                       {isAccepted ? (
-                        <div className="space-y-1">
-                          <Link
-                            href={`/organizer/scan/${vol.event_id}`}
-                            className="flex items-center justify-center gap-2 rounded bg-emerald-700 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shadow-xs"
-                          >
-                            <Camera className="h-3.5 w-3.5" />
-                            Scan attendance
+                        <div className="space-y-1.5">
+                          <Link href={`/organizer/scan/${vol.event_id}`}>
+                            <Button variant="primary" size="sm" className="w-full">
+                              <Camera className="h-4 w-4" /> Open Attendance Scanner
+                            </Button>
                           </Link>
                           {(() => {
                             const nowTime = Date.now();
                             const evStartMs = ev.start_time ? new Date(ev.start_time).getTime() : 0;
                             const evEndMs = ev.end_time ? new Date(ev.end_time).getTime() : 0;
-                            const isScanWindow = evStartMs > 0 && evEndMs > 0 && (nowTime >= evStartMs - 30 * 60 * 1000 && nowTime <= evEndMs + 30 * 60 * 1000);
+                            const isScanWindow =
+                              evStartMs > 0 &&
+                              evEndMs > 0 &&
+                              nowTime >= evStartMs - 30 * 60 * 1000 &&
+                              nowTime <= evEndMs + 30 * 60 * 1000;
                             return !isScanWindow ? (
-                              <p className="text-[10px] text-neutral-500 text-center italic">
-                                Scanning opens 30 min before the event starts and closes 30 min after it ends
+                              <p className="text-[11px] text-neutral-500 text-center">
+                                Scanner active 30 min before to 30 min after session
                               </p>
                             ) : null;
                           })()}
                         </div>
                       ) : (
-                        <div className="text-xs text-center text-neutral-500">
+                        <div className="text-xs text-center text-neutral-500 py-1">
                           {vol.status === 'rejected'
-                            ? 'Application not selected.'
+                            ? 'Application not selected by organizer'
                             : vol.status === 'withdrawn'
-                            ? 'Application withdrawn.'
-                            : 'Pending organizer review.'}
+                            ? 'Application was withdrawn'
+                            : 'Organizer decision pending'}
                         </div>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
           )}
-        </div>
+        </section>
+      )}
+
+      {/* 4. HOSTING SECTION */}
+      {activeTab === 'hosting' && (
+        <section aria-label="Hosted Events">
+          {initialLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          ) : hostedEvents.length === 0 ? (
+            <EmptyState
+              icon={<Shield className="h-6 w-6 text-neutral-400" />}
+              title="No events hosted yet"
+              description="Propose campus events through your club or department to access organizer tools and attendance scanning."
+              action={
+                <Link href="/organizer">
+                  <Button variant="primary" size="sm">
+                    Host an Event
+                  </Button>
+                </Link>
+              }
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {hostedEvents.map((ev) => (
+                <Card key={ev.id} className="flex flex-col justify-between">
+                  <div className="p-4 sm:p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={ev.status as any} />
+                          {ev.fests && (
+                            <span className="rounded bg-neutral-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+                              {ev.fests.name}
+                            </span>
+                          )}
+                        </div>
+                        <h2 className="text-base font-bold text-neutral-900 line-clamp-1 pt-1">
+                          {ev.title}
+                        </h2>
+                        <p className="text-xs text-neutral-500 font-medium">
+                          {ev.organizations?.name || ev.club_or_dept || 'Standalone'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                        <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-neutral-600">
+                        <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+                        <span>{formatEventDate(ev.start_time, ev.end_time)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between">
+                    <span className="text-xs text-neutral-500 font-medium">
+                      Host controls active
+                    </span>
+                    <Link href={`/organizer/events/${ev.id}`}>
+                      <Button variant="primary" size="sm">
+                        Manage Event <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 5. PAST SECTION WITH REVIEWS */}
+      {activeTab === 'past' && (
+        <section aria-label="Past Events">
+          {initialLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          ) : pastEvents.length === 0 ? (
+            <EmptyState
+              icon={<Calendar className="h-6 w-6 text-neutral-400" />}
+              title="No past attended events"
+              description="Events you have attended or registered for will appear here after they conclude."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pastEvents.map((reg) => {
+                const ev = reg.events;
+                if (!ev) return null;
+                const isCheckedIn = !!reg.checked_in_at;
+                const userReview = userReviews[ev.id];
+
+                return (
+                  <Card key={reg.id} className="flex flex-col justify-between">
+                    <div className="p-4 sm:p-5 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <StatusBadge status="draft" label="Concluded" />
+                            {isCheckedIn ? (
+                              <StatusBadge status="approved" label="Attended" />
+                            ) : (
+                              <StatusBadge status="rejected" label="Missed" />
+                            )}
+                          </div>
+                          <h2 className="text-base font-bold text-neutral-900 line-clamp-1 pt-1">
+                            {ev.title}
+                          </h2>
+                          <p className="text-xs text-neutral-500 font-medium">
+                            {ev.club_or_dept || 'Campus'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                          <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-neutral-600">
+                          <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+                          <span>{formatEventDate(ev.start_time, ev.end_time)}</span>
+                        </div>
+                      </div>
+
+                      {/* Review Call to Action */}
+                      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs space-y-2">
+                        {userReview ? (
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-1 text-amber-600 font-semibold">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-3.5 w-3.5 ${
+                                      i < userReview.rating
+                                        ? 'fill-amber-500 text-amber-500'
+                                        : 'text-neutral-300'
+                                    }`}
+                                  />
+                                ))}
+                                <span className="text-neutral-700 ml-1 text-xs">
+                                  ({userReview.rating}/5)
+                                </span>
+                              </div>
+                              {userReview.comment && (
+                                <p className="mt-1 text-neutral-600 text-xs italic line-clamp-2">
+                                  &ldquo;{userReview.comment}&rdquo;
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenReviewModal(ev.id, ev.title)}
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-neutral-600 font-medium">
+                              How was this session?
+                            </span>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleOpenReviewModal(ev.id, ev.title)}
+                            >
+                              <Star className="h-3.5 w-3.5 fill-white" /> Leave a review
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
 
       {/* LEAVE A REVIEW MODAL */}
       {reviewingEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative w-full max-w-md rounded-md bg-white p-6 shadow-lg border border-neutral-200 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-neutral-200 space-y-4">
             <button
               onClick={() => setReviewingEvent(null)}
-              className="absolute top-4 right-4 rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
+              aria-label="Close review dialog"
             >
               <X className="h-4 w-4" />
             </button>
 
             <div>
               <h2 className="text-lg font-bold text-neutral-900">
-                Event Feedback: {reviewingEvent.title}
+                Event Feedback
               </h2>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Feedback is anonymous to organizers.
+              <p className="text-xs text-neutral-500 mt-0.5 line-clamp-1">
+                {reviewingEvent.title} • Feedback is anonymous to organizers
               </p>
             </div>
 
-            {reviewError && (
-              <div className="rounded border border-red-200 bg-red-50 p-2.5 text-xs text-[#991B1B] flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
-                <span>{reviewError}</span>
-              </div>
-            )}
-
             <form onSubmit={handleSubmitReview} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-800 mb-1.5">
-                  Rating
+                <label className="block text-xs font-semibold text-neutral-800 mb-2">
+                  Overall Rating
                 </label>
                 <div className="flex items-center gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -814,7 +954,8 @@ export default function MyEventsPage() {
                       key={star}
                       type="button"
                       onClick={() => setReviewRating(star)}
-                      className="p-1.5 rounded border border-neutral-300 bg-white hover:bg-neutral-50 cursor-pointer"
+                      className="p-2 rounded-lg border border-neutral-200 hover:border-amber-400 bg-white hover:bg-amber-50/40 transition-colors cursor-pointer"
+                      aria-label={`Rate ${star} star`}
                     >
                       <Star
                         className={`h-6 w-6 ${
@@ -825,54 +966,55 @@ export default function MyEventsPage() {
                       />
                     </button>
                   ))}
-                  <span className="font-semibold text-xs text-neutral-800 ml-1">
-                    {reviewRating} of 5
+                  <span className="font-bold text-sm text-neutral-800 ml-2">
+                    {reviewRating} / 5
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-800 mb-1">
+                <label className="block text-xs font-semibold text-neutral-800 mb-1.5">
                   Comments (Optional)
                 </label>
                 <textarea
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Share feedback on session structure, content, and logistics..."
+                  placeholder="Share feedback on speaker quality, content, hall facilities..."
                   rows={3}
-                  className="w-full rounded border border-neutral-300 bg-white p-2.5 text-xs text-neutral-900 focus:border-[#A4161A] focus:outline-none"
+                  className="w-full rounded-lg border border-neutral-300 bg-white p-3 text-xs text-neutral-900 focus:border-[#A4161A] focus:ring-1 focus:ring-[#A4161A] focus:outline-none"
                 />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-200">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setReviewingEvent(null)}
-                  className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={submittingReview}
-                  className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {submittingReview ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Submitting...
+                      <Loader2 className="h-4 w-4 animate-spin" /> Submitting...
                     </>
                   ) : (
                     'Submit Feedback'
                   )}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* FULL SCREEN HIGH-CONTRAST QR PASS MODAL (Rendered via Portal to avoid unmounting/flicker) */}
+      {/* LARGE HIGH-CONTRAST QR POPUP (Optimized for phone brightness & scanning) */}
       {mounted &&
         selectedTicket &&
         selectedTicket.events &&
@@ -880,27 +1022,28 @@ export default function MyEventsPage() {
         createPortal(
           <div
             key={selectedTicket.id}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
           >
-            <div className="relative w-full max-w-sm rounded-md bg-white p-6 text-neutral-900 shadow-xl border border-neutral-200 space-y-4">
+            <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 sm:p-7 text-neutral-900 shadow-2xl border-2 border-neutral-300 space-y-4">
               <button
                 onClick={() => setSelectedTicketId(null)}
-                className="absolute top-4 right-4 rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
+                className="absolute top-4 right-4 rounded-lg p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
+                aria-label="Close QR pass"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
 
-              {/* Header & Student Roll / Name */}
-              <div className="text-center space-y-1 pt-1">
-                <div className="inline-block rounded bg-[#A4161A] px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">
-                  Digital Event Pass
+              {/* Pass Header */}
+              <div className="text-center space-y-1.5 pt-1">
+                <div className="inline-block rounded-md bg-[#A4161A] px-3 py-1 text-[11px] font-bold text-white uppercase tracking-wider">
+                  Official Campus Pass
                 </div>
 
                 <h2 className="text-lg font-bold text-neutral-900 leading-snug pt-1">
                   {selectedTicket.events.title}
                 </h2>
 
-                <div className="mt-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2.5 text-xs text-center">
                   <div className="font-bold text-sm text-neutral-900">
                     {profile?.name || selectedTicket.student_email}
                   </div>
@@ -910,56 +1053,54 @@ export default function MyEventsPage() {
                 </div>
               </div>
 
-              {/* HIGH-CONTRAST MEMOIZED QR CODE */}
-              <div className="flex flex-col items-center justify-center rounded border border-neutral-300 bg-white p-4">
+              {/* Ultra High-Contrast Large QR Container */}
+              <div className="flex flex-col items-center justify-center rounded-xl border-2 border-neutral-900 bg-white p-4 shadow-sm">
                 <div className="p-2 bg-white">
                   <MemoizedQRCode token={selectedTicket.qr_token} />
                 </div>
-
-                <span className="mt-2 font-mono text-[10px] text-neutral-500 select-all">
-                  TOKEN: {selectedTicket.qr_token}
-                </span>
+                <div className="mt-2 text-center">
+                  <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">
+                    Digital Entry Token
+                  </span>
+                  <div className="font-mono text-xs font-semibold text-neutral-800 select-all">
+                    {selectedTicket.qr_token}
+                  </div>
+                </div>
               </div>
 
               {/* Venue and Timing */}
-              <div className="rounded border border-neutral-200 bg-neutral-50 p-2.5 space-y-1 text-xs text-neutral-700">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-1.5 text-xs text-neutral-700">
                 <div className="flex items-center justify-between font-medium">
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
-                    {selectedTicket.events.halls?.name || 'Campus Venue'}
+                    {formatHall(selectedTicket.events.halls?.name, selectedTicket.events.halls?.capacity)}
                   </span>
                   {selectedTicket.checked_in_at ? (
-                    <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Checked In
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="h-4 w-4" /> Checked In
                     </span>
                   ) : (
-                    <span className="text-[#A4161A] font-medium">Ready for scan</span>
+                    <span className="text-[#A4161A] font-semibold">Ready to Scan</span>
                   )}
                 </div>
 
-                <div className="text-[11px] text-neutral-500 font-mono">
-                  {new Date(selectedTicket.events.start_time).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })} • {new Date(selectedTicket.events.start_time).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true,
-                  })}
+                <div className="text-xs text-neutral-500">
+                  {formatEventDate(selectedTicket.events.start_time, selectedTicket.events.end_time)}
                 </div>
               </div>
 
-              <p className="text-center text-[11px] text-neutral-500">
-                Present this code at the hall entrance for check-in verification.
+              <p className="text-center text-[11px] text-neutral-500 font-medium">
+                Set screen to high brightness and present at venue entrance.
               </p>
 
-              <button
+              <Button
+                variant="primary"
+                size="md"
+                className="w-full"
                 onClick={() => setSelectedTicketId(null)}
-                className="w-full rounded bg-neutral-900 py-2 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors cursor-pointer"
               >
-                Close
-              </button>
+                Close Pass
+              </Button>
             </div>
           </div>,
           document.body

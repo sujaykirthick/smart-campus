@@ -4,6 +4,15 @@ import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Hall, PublicHallBooking } from '@/lib/types';
 import {
+  PageHeader,
+  Card,
+  StatusBadge,
+  Button,
+  EmptyState,
+  SkeletonCard,
+} from '@/components/ui';
+import { formatHall } from '@/lib/format';
+import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
@@ -13,6 +22,7 @@ import {
   CheckCircle,
   Building2,
   RefreshCw,
+  Info,
 } from 'lucide-react';
 
 const DAY_START_HOUR = 8; // 8:00 AM
@@ -29,7 +39,6 @@ function getTodayString() {
 
 function HallsContent() {
   const [selectedDate, setSelectedDate] = useState('2026-10-10');
-
   const [halls, setHalls] = useState<Hall[]>([]);
   const [bookings, setBookings] = useState<PublicHallBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +46,6 @@ function HallsContent() {
 
   const supabase = useMemo(() => createClient(), []);
 
-  // Initialize client date on mount
   useEffect(() => {
     setSelectedDate(getTodayString());
   }, []);
@@ -48,7 +56,6 @@ function HallsContent() {
       else setRefreshing(true);
 
       try {
-        // 1. Fetch all halls
         const { data: hallsData, error: hallsError } = await supabase
           .from('halls')
           .select('*')
@@ -57,7 +64,6 @@ function HallsContent() {
         if (hallsError) throw hallsError;
         setHalls(hallsData || []);
 
-        // 2. Fetch bookings from public_hall_bookings for the selected date
         const startOfDay = `${selectedDate}T00:00:00.000Z`;
         const endOfDay = `${selectedDate}T23:59:59.999Z`;
 
@@ -137,7 +143,6 @@ function HallsContent() {
     });
   }, [selectedDate]);
 
-  // Group bookings by hall_id
   const bookingsByHall = useMemo(() => {
     const map = new Map<string, PublicHallBooking[]>();
     for (const h of halls) {
@@ -160,7 +165,6 @@ function HallsContent() {
     });
   };
 
-  // Timeline position calculation (8 AM - 8 PM)
   const getTimelinePosition = (startTimeStr: string, endTimeStr: string) => {
     const start = new Date(startTimeStr);
     const end = new Date(endTimeStr);
@@ -177,10 +181,9 @@ function HallsContent() {
     return { left: `${leftPercent}%`, width: `${widthPercent}%` };
   };
 
-  // Calculate free time intervals for a hall between 8:00 AM and 8:00 PM
   const getFreeTimeSlots = (hallBookings: PublicHallBooking[]) => {
     if (hallBookings.length === 0) {
-      return [{ start: '08:00 AM', end: '08:00 PM', duration: '12 hrs' }];
+      return [{ start: '08:00 AM', end: '08:00 PM', duration: '12 hrs free' }];
     }
 
     const freeSlots: { start: string; end: string; duration: string }[] = [];
@@ -202,7 +205,7 @@ function HallsContent() {
         );
         const endFormat = formatTime(bStart.toISOString());
         const diffHrs = (bStartHour - currentHour).toFixed(1);
-        freeSlots.push({ start: startFormat, end: endFormat, duration: `${diffHrs} hrs` });
+        freeSlots.push({ start: startFormat, end: endFormat, duration: `${diffHrs} hrs free` });
       }
 
       currentHour = Math.max(currentHour, bEndHour);
@@ -214,7 +217,7 @@ function HallsContent() {
       );
       const endFormat = '08:00 PM';
       const diffHrs = (DAY_END_HOUR - currentHour).toFixed(1);
-      freeSlots.push({ start: startFormat, end: endFormat, duration: `${diffHrs} hrs` });
+      freeSlots.push({ start: startFormat, end: endFormat, duration: `${diffHrs} hrs free` });
     }
 
     return freeSlots;
@@ -228,141 +231,125 @@ function HallsContent() {
   ).length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      {/* Header & Date Selector */}
-      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
-              Campus Hall Availability
-            </h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              Real-time schedule for campus auditoriums and seminar halls.
-            </p>
+    <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 space-y-6">
+      {/* Top Header */}
+      <PageHeader
+        title="Hall Availability Schedule"
+        description="Live timeline of campus auditoriums, seminar halls, and booking reservations."
+      />
+
+      {/* ALWAYS VISIBLE / STICKY DATE NAVIGATION BAR */}
+      <div className="sticky top-16 z-20 rounded-xl border border-neutral-200 bg-white/95 backdrop-blur-md p-3.5 sm:p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Active Date Title */}
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-[#A4161A] shrink-0">
+              <CalendarIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                Viewing Schedule For
+              </div>
+              <div className="text-base font-extrabold text-neutral-900 leading-tight">
+                {formattedDateTitle}
+              </div>
+            </div>
           </div>
 
-          {/* Date Controls */}
+          {/* Date Step Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center rounded-md border border-neutral-300 bg-white p-1">
-              <button
+            <div className="flex items-center rounded-lg border border-neutral-300 bg-white p-1">
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => handleDateChange(-1)}
-                className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
-                title="Previous Day"
+                aria-label="Previous day"
+                className="h-8 w-8 p-0"
               >
                 <ChevronLeft className="h-4 w-4" />
-              </button>
+              </Button>
 
-              <div className="flex items-center gap-2 px-2.5 py-0.5">
-                <CalendarIcon className="h-3.5 w-3.5 text-[#A4161A]" />
+              <div className="flex items-center gap-1.5 px-2">
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-transparent text-xs sm:text-sm font-semibold text-neutral-900 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-xs font-semibold text-neutral-900 focus:outline-none cursor-pointer"
+                  aria-label="Select date"
                 />
               </div>
 
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => handleDateChange(1)}
-                className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
-                title="Next Day"
+                aria-label="Next day"
+                className="h-8 w-8 p-0"
               >
                 <ChevronRight className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
-            <button
-              onClick={handleSetToday}
-              className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
-            >
+            <Button variant="secondary" size="sm" onClick={handleSetToday}>
               Today
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => fetchData(false)}
               disabled={refreshing}
-              className="rounded-md border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
-              title="Refresh availability"
+              aria-label="Refresh availability"
+              className="h-9 w-9 p-0"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Date banner & Color Legend */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-md border border-neutral-200 bg-[#F5F5F5] p-4 text-neutral-900">
-        <div>
-          <div className="text-xs text-neutral-500 font-medium">Selected Date</div>
-          <div className="text-base font-bold text-neutral-900 mt-0.5">{formattedDateTitle}</div>
+      {/* CLEAR COLOR LEGEND & SUMMARY BANNER */}
+      <Card className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-neutral-50/70">
+        <div className="flex flex-wrap items-center gap-5 text-xs">
+          <span className="font-bold text-neutral-500 uppercase tracking-wider text-[11px]">
+            Schedule Legend:
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded bg-[#A4161A] shadow-xs" />
+            <span className="font-semibold text-neutral-900">Booked (Reserved)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded bg-amber-500 shadow-xs" />
+            <span className="font-semibold text-neutral-900">Pending Approval</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded border border-emerald-500 bg-emerald-100 shadow-xs" />
+            <span className="font-semibold text-neutral-900">Available Window</span>
+          </div>
         </div>
 
-        {/* Legend (Requirement 4) */}
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          {/* Red for Booked */}
-          <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded bg-[#7F1D1D]"></span>
-            <span className="text-neutral-700 font-medium">Booked</span>
-          </div>
-          {/* Amber for Pending */}
-          <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded bg-[#D97706]"></span>
-            <span className="text-neutral-700 font-medium">Pending approval (not yet reserved)</span>
-          </div>
-          {/* Green for Free */}
-          <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded border border-emerald-600 bg-emerald-100"></span>
-            <span className="text-neutral-700 font-medium">Available</span>
-          </div>
+        <div className="flex items-center gap-3 text-xs text-neutral-600 font-medium">
+          <span>{totalBookedCount} Booked</span>
+          <span>•</span>
+          <span>{totalPendingCount} Pending</span>
+          <span>•</span>
+          <span>{halls.length} Halls</span>
         </div>
-      </div>
+      </Card>
 
-      {/* Summary Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-md border border-neutral-200 bg-white p-3.5 shadow-xs">
-          <div className="text-xs text-neutral-500 font-medium">Campus Venues</div>
-          <div className="mt-1 text-xl font-bold text-neutral-900">
-            {halls.length}
-          </div>
-        </div>
-        <div className="rounded-md border border-neutral-200 bg-white p-3.5 shadow-xs">
-          <div className="text-xs text-neutral-500 font-medium">Total Requests Today</div>
-          <div className="mt-1 text-xl font-bold text-neutral-900">
-            {bookings.length}
-          </div>
-        </div>
-        <div className="rounded-md border border-red-200 bg-red-50 p-3.5 shadow-xs">
-          <div className="text-xs text-[#991B1B] font-medium">Booked (Reserved)</div>
-          <div className="mt-1 text-xl font-bold text-[#991B1B]">
-            {totalBookedCount}
-          </div>
-        </div>
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3.5 shadow-xs">
-          <div className="text-xs text-amber-800 font-medium">Pending Approval</div>
-          <div className="mt-1 text-xl font-bold text-amber-900">
-            {totalPendingCount}
-          </div>
-        </div>
-      </div>
-
-      {/* Halls Availability List */}
+      {/* HALLS LIST */}
       {loading ? (
         <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-40 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200"
-            />
-          ))}
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       ) : halls.length === 0 ? (
-        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
-          <Building2 className="mx-auto h-10 w-10 text-neutral-300" />
-          <h3 className="mt-3 text-base font-semibold text-neutral-900">No Halls Found</h3>
-          <p className="mt-1 text-xs text-neutral-500">
-            No hall records available for scheduling.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Building2 className="h-6 w-6 text-neutral-400" />}
+          title="No campus halls found"
+          description="Hall configurations have not been configured yet."
+        />
       ) : (
         <div className="space-y-4">
           {halls.map((hall) => {
@@ -370,118 +357,120 @@ function HallsContent() {
             const freeSlots = getFreeTimeSlots(hallBookings);
 
             return (
-              <div
-                key={hall.id}
-                className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
-              >
-                {/* Hall Header */}
-                <div className="border-b border-neutral-200 bg-neutral-50 px-5 py-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded bg-[#A4161A] text-white">
-                        <Building2 className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-neutral-900">
-                          {hall.name}
-                        </h2>
-                        {hall.location && (
-                          <div className="flex items-center gap-1 text-xs text-neutral-500">
-                            <MapPin className="h-3 w-3 text-[#A4161A]" />
-                            {hall.location}
-                          </div>
-                        )}
-                      </div>
+              <Card key={hall.id} className="overflow-hidden">
+                {/* Hall Header Bar */}
+                <div className="border-b border-neutral-200 bg-neutral-50/70 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#A4161A] text-white shrink-0">
+                      <Building2 className="h-4 w-4" />
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700">
-                        <Users className="h-3.5 w-3.5 text-neutral-400" />
-                        {hall.capacity.toLocaleString()} Seats
-                      </div>
-
-                      {hallBookings.length === 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
-                          <CheckCircle className="h-3 w-3 text-emerald-700" />
-                          Full Day Available
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600">
-                          {hallBookings.length} {hallBookings.length === 1 ? 'Booking' : 'Bookings'}
-                        </span>
+                    <div>
+                      <h2 className="text-base font-bold text-neutral-900">
+                        {hall.name}
+                      </h2>
+                      {hall.location && (
+                        <div className="flex items-center gap-1 text-xs text-neutral-500">
+                          <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
+                          <span>{hall.location}</span>
+                        </div>
                       )}
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700 flex items-center gap-1.5 shadow-xs">
+                      <Users className="h-3.5 w-3.5 text-neutral-400" />
+                      {hall.capacity.toLocaleString()} Capacity
+                    </span>
+
+                    {hallBookings.length === 0 ? (
+                      <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 flex items-center gap-1">
+                        <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> All-Day Free
+                      </span>
+                    ) : (
+                      <span className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600">
+                        {hallBookings.length} {hallBookings.length === 1 ? 'Booking' : 'Bookings'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="p-5 space-y-4">
-                  {/* Visual Day Timeline Bar (8 AM - 8 PM) */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] font-medium text-neutral-500 font-mono">
-                      <span>8:00 AM</span>
-                      <span className="hidden sm:inline">11:00 AM</span>
-                      <span>2:00 PM</span>
-                      <span className="hidden sm:inline">5:00 PM</span>
-                      <span>8:00 PM</span>
-                    </div>
-
-                    <div className="relative h-8 w-full overflow-hidden rounded border border-neutral-300 bg-neutral-50">
-                      {/* Hour markers */}
-                      <div className="absolute inset-0 grid grid-cols-12 pointer-events-none opacity-25">
-                        {Array.from({ length: 12 }).map((_, idx) => (
-                          <div
-                            key={idx}
-                            className={`h-full border-r border-neutral-400 ${
-                              idx % 3 === 0 ? 'border-neutral-600' : ''
-                            }`}
-                          />
-                        ))}
+                {/* Timeline and Slots Body */}
+                <div className="p-4 sm:p-5 space-y-4">
+                  {/* READABLE HOURLY TIMELINE BAR */}
+                  <div className="space-y-1.5 overflow-x-auto pb-1">
+                    <div className="min-w-[500px]">
+                      {/* Hour Axis Labels */}
+                      <div className="flex items-center justify-between text-[11px] font-bold text-neutral-500 font-mono pb-1">
+                        <span>8:00 AM</span>
+                        <span>10:00 AM</span>
+                        <span>12:00 PM</span>
+                        <span>2:00 PM</span>
+                        <span>4:00 PM</span>
+                        <span>6:00 PM</span>
+                        <span>8:00 PM</span>
                       </div>
 
-                      {/* Render booked / submitted time blocks */}
-                      {hallBookings.map((b, idx) => {
-                        const { left, width } = getTimelinePosition(b.start_time, b.end_time);
-                        const isBooked =
-                          b.status === 'booked' || b.status === 'approved' || b.approval_stage === 'cd';
+                      {/* Visual Bar Track */}
+                      <div className="relative h-9 w-full overflow-hidden rounded-lg border border-neutral-300 bg-emerald-50/40">
+                        {/* Hour Grid Columns */}
+                        <div className="absolute inset-0 grid grid-cols-12 pointer-events-none opacity-30">
+                          {Array.from({ length: 12 }).map((_, idx) => (
+                            <div
+                              key={idx}
+                              className={`h-full border-r border-neutral-400 ${
+                                idx % 2 === 1 ? 'border-neutral-500' : ''
+                              }`}
+                            />
+                          ))}
+                        </div>
 
-                        return (
-                          <div
-                            key={idx}
-                            style={{ left, width }}
-                            className={`absolute top-0.5 bottom-0.5 rounded px-2 flex items-center overflow-hidden cursor-pointer ${
-                              isBooked
-                                ? 'bg-[#7F1D1D] text-white'
-                                : 'bg-[#D97706] text-white'
-                            }`}
-                            title={`${b.title} (${isBooked ? 'Booked' : 'Pending'}): ${formatTime(b.start_time)} - ${formatTime(b.end_time)}`}
-                          >
-                            <span className="truncate text-xs font-medium">
-                              {b.title}
-                            </span>
-                          </div>
-                        );
-                      })}
+                        {/* Booking Time Blocks */}
+                        {hallBookings.map((b, idx) => {
+                          const { left, width } = getTimelinePosition(b.start_time, b.end_time);
+                          const isBooked =
+                            b.status === 'booked' ||
+                            b.status === 'approved' ||
+                            b.approval_stage === 'cd';
+
+                          return (
+                            <div
+                              key={idx}
+                              style={{ left, width }}
+                              className={`absolute top-0.5 bottom-0.5 rounded-md px-2 flex items-center overflow-hidden cursor-default shadow-xs ${
+                                isBooked
+                                  ? 'bg-[#A4161A] text-white'
+                                  : 'bg-amber-500 text-white'
+                              }`}
+                              title={`${b.title} (${isBooked ? 'Booked' : 'Pending'}): ${formatTime(b.start_time)} – ${formatTime(b.end_time)}`}
+                            >
+                              <span className="truncate text-xs font-semibold">
+                                {b.title}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Free time slots & Bookings detailed list */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    {/* Free Slots */}
-                    <div className="rounded border border-emerald-200 bg-emerald-50/50 p-3 space-y-1.5">
-                      <div className="font-semibold text-emerald-900 flex items-center gap-1.5 text-[11px]">
-                        <Clock className="h-3 w-3 text-emerald-700" />
-                        Available Windows
+                  {/* Free Windows vs Occupied List */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+                    {/* Available Windows */}
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50/30 p-3 space-y-1.5">
+                      <div className="font-bold text-emerald-900 flex items-center gap-1.5 text-xs uppercase tracking-wide">
+                        <Clock className="h-3.5 w-3.5 text-emerald-700" /> Available Windows
                       </div>
                       <div className="space-y-1">
                         {freeSlots.map((slot, sIdx) => (
                           <div
                             key={sIdx}
-                            className="flex items-center justify-between text-emerald-800 font-mono text-xs"
+                            className="flex items-center justify-between font-mono text-xs text-emerald-800"
                           >
                             <span>
                               {slot.start} – {slot.end}
                             </span>
-                            <span className="font-medium text-[11px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-900">
+                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-900">
                               {slot.duration}
                             </span>
                           </div>
@@ -489,11 +478,11 @@ function HallsContent() {
                       </div>
                     </div>
 
-                    {/* Occupied List */}
-                    <div className="rounded border border-neutral-200 bg-neutral-50 p-3 space-y-1.5">
-                      <div className="font-semibold text-neutral-800 flex items-center gap-1.5 text-[11px]">
-                        <Building2 className="h-3 w-3 text-neutral-500" />
-                        Scheduled Bookings ({hallBookings.length})
+                    {/* Scheduled Bookings */}
+                    <div className="rounded-lg border border-neutral-200 bg-neutral-50/70 p-3 space-y-1.5">
+                      <div className="font-bold text-neutral-800 flex items-center gap-1.5 text-xs uppercase tracking-wide">
+                        <Building2 className="h-3.5 w-3.5 text-neutral-500" />
+                        Bookings on this Date ({hallBookings.length})
                       </div>
                       {hallBookings.length === 0 ? (
                         <div className="text-neutral-500 italic text-xs py-1">
@@ -510,16 +499,18 @@ function HallsContent() {
                             return (
                               <div
                                 key={bIdx}
-                                className="flex items-center justify-between border-b border-neutral-200 pb-1 last:border-0 last:pb-0"
+                                className="flex items-center justify-between border-b border-neutral-200/60 pb-1.5 last:border-0 last:pb-0"
                               >
                                 <div>
-                                  <div className="font-medium text-neutral-900 line-clamp-1">{b.title}</div>
+                                  <div className="font-semibold text-neutral-900 line-clamp-1">
+                                    {b.title}
+                                  </div>
                                   <div className="text-[11px] text-neutral-500 font-mono">
                                     {formatTime(b.start_time)} – {formatTime(b.end_time)}
                                   </div>
                                 </div>
                                 <span
-                                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                  className={`rounded px-2 py-0.5 text-[10px] font-bold ${
                                     isBooked
                                       ? 'bg-red-100 text-[#991B1B] border border-red-200'
                                       : 'bg-amber-100 text-amber-900 border border-amber-200'
@@ -535,7 +526,7 @@ function HallsContent() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -548,13 +539,9 @@ export default function HallsPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-7xl px-4 py-8 space-y-4">
-          <div className="h-20 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
-            ))}
-          </div>
+        <div className="mx-auto max-w-[1200px] px-4 py-8 space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       }
     >

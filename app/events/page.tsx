@@ -6,6 +6,17 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { CampusEvent, Hall, Fest, Registration, AllowedUser, Volunteer } from '@/lib/types';
 import {
+  PageHeader,
+  Card,
+  StatusBadge,
+  Button,
+  Tabs,
+  EmptyState,
+  SkeletonCard,
+  useToast,
+} from '@/components/ui';
+import { formatEventDate, formatHall } from '@/lib/format';
+import {
   Clock,
   MapPin,
   Users,
@@ -20,11 +31,11 @@ import {
   QrCode,
   AlertCircle,
   XCircle,
-  Loader2,
   Hourglass,
   HandHelping,
   Plus,
   Camera,
+  ExternalLink,
 } from 'lucide-react';
 
 interface SeatCountInfo {
@@ -34,6 +45,8 @@ interface SeatCountInfo {
 
 export default function EventsPage() {
   const router = useRouter();
+  const { success: toastSuccess, error: toastError } = useToast();
+
   const [events, setEvents] = useState<CampusEvent[]>([]);
   const [halls, setHalls] = useState<Hall[]>([]);
   const [fests, setFests] = useState<Fest[]>([]);
@@ -43,8 +56,6 @@ export default function EventsPage() {
   const [seatCounts, setSeatCounts] = useState<Record<string, SeatCountInfo>>({});
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // 1. Primary Fest Tabs: 'standalone' | <fest_id> | 'past_fests_archive'
   const [selectedFestTab, setSelectedFestTab] = useState<string>('standalone');
@@ -61,8 +72,9 @@ export default function EventsPage() {
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      // 1. Fetch current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       let studentRegs: Registration[] = [];
       let studentVols: Volunteer[] = [];
@@ -88,20 +100,14 @@ export default function EventsPage() {
           };
         }
 
-        if (myRegRes.data) {
-          studentRegs = myRegRes.data as Registration[];
-        }
-
-        if (myVolRes.data) {
-          studentVols = myVolRes.data as Volunteer[];
-        }
+        if (myRegRes.data) studentRegs = myRegRes.data as Registration[];
+        if (myVolRes.data) studentVols = myVolRes.data as Volunteer[];
       }
 
       setUserProfile(profile);
       setMyRegistrations(studentRegs);
       setMyVolunteers(studentVols);
 
-      // 2. Fetch approved events, halls, and fests
       const [eventsRes, hallsRes, festsRes, countsRes] = await Promise.all([
         supabase
           .from('events')
@@ -151,32 +157,15 @@ export default function EventsPage() {
         setSeatCounts(map);
       }
     } catch (err: any) {
-      console.error('Error loading events feed:', err);
-      setErrorMsg(err?.message || 'Failed to load events.');
+      console.error('Error loading events:', err);
+      toastError('Failed to load events', err?.message);
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, toastError]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
-
-  // Silent polling every 30s and on window focus so accepted volunteer status updates promptly
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchData(true);
-    }, 30000);
-
-    const onFocus = () => {
-      fetchData(true);
-    };
-    window.addEventListener('focus', onFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-    };
   }, [fetchData]);
 
   // Handle Register
@@ -187,17 +176,15 @@ export default function EventsPage() {
     }
 
     if (userProfile.role !== 'student') {
-      setErrorMsg('Only students can register for events.');
+      toastError('Student Only', 'Only students can register for events.');
       return;
     }
 
     if (userProfile.email.toLowerCase().trim() === event.organizer_email?.toLowerCase().trim()) {
-      setErrorMsg('You are hosting this event and cannot register for it');
+      toastError('Hosting Event', "You are hosting this event and cannot register for it.");
       return;
     }
 
-    setErrorMsg(null);
-    setSuccessMsg(null);
     setActionLoadingId(event.id);
 
     try {
@@ -212,22 +199,22 @@ export default function EventsPage() {
 
       if (error) {
         if (error.message.includes('unique') || error.code === '23505') {
-          setErrorMsg('You are already registered or waitlisted for this event.');
+          toastError('Already Registered', 'You are already registered or waitlisted for this event.');
         } else {
-          setErrorMsg(error.message);
+          toastError('Registration Failed', error.message);
         }
         return;
       }
 
       const reg = data as Registration;
       if (reg.status === 'waitlisted') {
-        setSuccessMsg(`Event capacity reached. You have been added to the waitlist for "${event.title}".`);
+        toastSuccess('Added to Waitlist', `Venue full. You are on the waitlist for "${event.title}".`);
       } else {
-        setSuccessMsg(`Registration confirmed for "${event.title}". Pass is available under My Passes.`);
+        toastSuccess('Registration Confirmed!', `Your pass for "${event.title}" is ready in My Passes.`);
       }
       fetchData();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'An unexpected error occurred during registration.');
+      toastError('Registration Error', err?.message);
     } finally {
       setActionLoadingId(null);
     }
@@ -241,12 +228,10 @@ export default function EventsPage() {
     }
 
     if (userProfile.role !== 'student') {
-      setErrorMsg('Only students can apply as volunteers.');
+      toastError('Student Only', 'Only students can apply as volunteers.');
       return;
     }
 
-    setErrorMsg(null);
-    setSuccessMsg(null);
     setActionLoadingId(`vol-${event.id}`);
 
     try {
@@ -255,14 +240,14 @@ export default function EventsPage() {
       });
 
       if (error) {
-        setErrorMsg(error.message);
+        toastError('Application Failed', error.message);
         return;
       }
 
-      setSuccessMsg(`Volunteer application submitted for "${event.title}". The organizer will review your application.`);
+      toastSuccess('Volunteer Application Submitted', `The host for "${event.title}" will review your application.`);
       fetchData();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to submit volunteer application.');
+      toastError('Application Error', err?.message);
     } finally {
       setActionLoadingId(null);
     }
@@ -272,8 +257,6 @@ export default function EventsPage() {
   const handleWithdrawVolunteer = async (event: CampusEvent) => {
     if (!userProfile) return;
 
-    setErrorMsg(null);
-    setSuccessMsg(null);
     setActionLoadingId(`vol-with-${event.id}`);
 
     try {
@@ -282,14 +265,14 @@ export default function EventsPage() {
       });
 
       if (error) {
-        setErrorMsg(error.message);
+        toastError('Withdrawal Failed', error.message);
         return;
       }
 
-      setSuccessMsg(`Withdrew volunteer application for "${event.title}".`);
+      toastSuccess('Application Withdrawn', `Withdrew volunteer request for "${event.title}".`);
       fetchData();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to withdraw volunteer application.');
+      toastError('Withdrawal Error', err?.message);
     } finally {
       setActionLoadingId(null);
     }
@@ -299,36 +282,28 @@ export default function EventsPage() {
   const handleCancelRegistration = async (registrationId: string, eventTitle: string) => {
     if (!confirm(`Cancel your registration/waitlist spot for "${eventTitle}"?`)) return;
 
-    setErrorMsg(null);
-    setSuccessMsg(null);
     setActionLoadingId(registrationId);
 
     try {
-      const { error } = await supabase
-        .from('registrations')
-        .delete()
-        .eq('id', registrationId);
-
+      const { error } = await supabase.from('registrations').delete().eq('id', registrationId);
       if (error) throw error;
-      setSuccessMsg(`Registration cancelled for "${eventTitle}".`);
+      toastSuccess('Registration Cancelled', `Cancelled your spot for "${eventTitle}".`);
       fetchData();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to cancel registration.');
+      toastError('Cancellation Error', err?.message);
     } finally {
       setActionLoadingId(null);
     }
   };
 
-  // Maps & classifications
+  // Categorizations
   const festsById = useMemo(() => {
     const map = new Map<string, Fest>();
     fests.forEach((f) => map.set(f.id, f));
     return map;
   }, [fests]);
 
-  const activeFests = useMemo(() => {
-    return fests.filter((f) => f.is_active);
-  }, [fests]);
+  const activeFests = useMemo(() => fests.filter((f) => f.is_active), [fests]);
 
   const inactiveFestEventsCount = useMemo(() => {
     return events.filter((e) => {
@@ -385,7 +360,7 @@ export default function EventsPage() {
           return org.includes('club') || org.includes('society') || org.includes('acm') || org.includes('ieee');
         }
         if (organizerFilter === 'department') {
-          return org.includes('department') || org.includes('dept') || org.includes('cse') || org.includes('ece');
+          return org.includes('department') || org.includes('dept') || org.includes('math') || org.includes('cse');
         }
         return true;
       });
@@ -405,259 +380,141 @@ export default function EventsPage() {
     return list;
   }, [classifiedEvents, timeTab, organizerFilter, searchQuery]);
 
-  const formatEventDate = (startIso: string, endIso: string) => {
-    const s = new Date(startIso);
-    const e = new Date(endIso);
+  // Primary Fest Tabs config
+  const festTabItems = [
+    {
+      id: 'standalone',
+      label: 'Campus Events',
+      count: events.filter((e) => e.fest_id === null).length,
+      icon: <Layers className="h-4 w-4" />,
+    },
+  ];
 
-    const dateStr = s.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+  activeFests.forEach((fest) => {
+    festTabItems.push({
+      id: fest.id,
+      label: fest.name,
+      count: events.filter((e) => e.fest_id === fest.id).length,
+      icon: <Calendar className="h-4 w-4" />,
     });
+  });
 
-    const startTimeStr = s.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
+  if (inactiveFestEventsCount > 0) {
+    festTabItems.push({
+      id: 'past_fests_archive',
+      label: 'Past Fests Archive',
+      count: inactiveFestEventsCount,
+      icon: <Archive className="h-4 w-4" />,
     });
+  }
 
-    const endTimeStr = e.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    return { dateStr, startTimeStr, endTimeStr };
-  };
-
-  const getActiveTabTitle = () => {
-    if (selectedFestTab === 'standalone') return 'Standalone Events';
-    if (selectedFestTab === 'past_fests_archive') return 'Past Fests Archive';
-    const fest = festsById.get(selectedFestTab);
-    return fest ? `${fest.name} Events` : 'Fest Events';
-  };
+  // Time sub-tabs config
+  const timeSubTabs = [
+    { id: 'upcoming', label: 'Upcoming', count: classifiedEvents.upcoming.length },
+    { id: 'ongoing', label: 'Ongoing Now', count: classifiedEvents.ongoing.length },
+    { id: 'past', label: 'Past Events', count: classifiedEvents.past.length },
+  ];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      {/* Header Bar */}
-      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
-              Campus Events Schedule
-            </h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              Browse approved club activities, department workshops, and institutional fests.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+      {/* Page Header */}
+      <PageHeader
+        title="Campus Events"
+        description="Explore verified academic seminars, technical workshops, and collegiate fests at Amrita."
+        actions={
+          <div className="flex items-center gap-2">
             {(!userProfile || userProfile.role === 'student' || userProfile.role === 'faculty') && (
-              <Link
-                href="/organizer"
-                className="inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors shadow-xs"
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => router.push('/organizer')}
+                leftIcon={<Plus className="h-4 w-4" />}
               >
-                <Plus className="h-4 w-4" />
-                Propose an event
-              </Link>
+                Propose Event
+              </Button>
             )}
 
             {myRegistrations.length > 0 && (
-              <Link
-                href="/my-events"
-                className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3.5 py-2 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors"
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => router.push('/my-events')}
+                leftIcon={<QrCode className="h-4 w-4 text-[#A4161A]" />}
               >
-                <QrCode className="h-4 w-4 text-[#A4161A]" />
                 My Passes ({myRegistrations.length})
-              </Link>
+              </Button>
             )}
-
-            <button
-              onClick={() => fetchData()}
-              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
-              title="Refresh schedule"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
-            </button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Global Alert Banners */}
-        {errorMsg && (
-          <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
-              <span className="font-medium">{errorMsg}</span>
-            </div>
-            <button onClick={() => setErrorMsg(null)} className="text-[#991B1B] hover:opacity-75 cursor-pointer">
-              <XCircle className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+      {/* Primary Category Tabs (Standalone vs Active Fests vs Archive) */}
+      <Tabs
+        tabs={festTabItems}
+        activeTab={selectedFestTab}
+        onChange={setSelectedFestTab}
+        variant="underline"
+      />
 
-        {successMsg && (
-          <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
-              <span className="font-medium">{successMsg}</span>
-            </div>
-            <button onClick={() => setSuccessMsg(null)} className="text-emerald-800 hover:opacity-75 cursor-pointer">
-              <XCircle className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Sub-tabs & Combined Filter Bar in ONE responsive row */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+        <Tabs
+          tabs={timeSubTabs}
+          activeTab={timeTab}
+          onChange={(t) => setTimeTab(t as any)}
+          variant="pills"
+          className="lg:w-auto"
+        />
 
-      {/* Primary Category Tabs (Flat Underlined Tabs) */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 border-b border-neutral-200 overflow-x-auto">
-          <button
-            onClick={() => setSelectedFestTab('standalone')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer shrink-0 ${
-              selectedFestTab === 'standalone'
-                ? 'border-[#A4161A] text-[#A4161A] font-semibold'
-                : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
-            }`}
-          >
-            <Layers className="h-3.5 w-3.5" />
-            Standalone Events ({events.filter((e) => e.fest_id === null).length})
-          </button>
-
-          {activeFests.map((fest) => {
-            const count = events.filter((e) => e.fest_id === fest.id).length;
-            const isSelected = selectedFestTab === fest.id;
-
-            return (
-              <button
-                key={fest.id}
-                onClick={() => setSelectedFestTab(fest.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer shrink-0 ${
-                  isSelected
-                    ? 'border-[#A4161A] text-[#A4161A] font-semibold'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
-                }`}
-              >
-                <span>{fest.name}</span>
-                <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-600 font-normal">
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-
-          {inactiveFestEventsCount > 0 && (
-            <button
-              onClick={() => setSelectedFestTab('past_fests_archive')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors cursor-pointer shrink-0 ${
-                selectedFestTab === 'past_fests_archive'
-                  ? 'border-[#A4161A] text-[#A4161A] font-semibold'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-900 hover:border-neutral-300'
-              }`}
-            >
-              <Archive className="h-3.5 w-3.5" />
-              Past Fests Archive ({inactiveFestEventsCount})
-            </button>
-          )}
-        </div>
-
-        {/* Time Tabs & Filters */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-1.5 bg-neutral-100 p-1 rounded-md">
-            <button
-              onClick={() => setTimeTab('upcoming')}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                timeTab === 'upcoming'
-                  ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              Upcoming ({classifiedEvents.upcoming.length})
-            </button>
-
-            <button
-              onClick={() => setTimeTab('ongoing')}
-              className={`flex items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                timeTab === 'ongoing'
-                  ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
-              Ongoing ({classifiedEvents.ongoing.length})
-            </button>
-
-            <button
-              onClick={() => setTimeTab('past')}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                timeTab === 'past'
-                  ? 'bg-white text-neutral-900 shadow-xs font-semibold'
-                  : 'text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              Past ({classifiedEvents.past.length})
-            </button>
+        {/* Filter controls row */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search title, venue, club..."
+              className="w-full rounded-lg border border-neutral-300 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none min-h-[40px]"
+            />
           </div>
 
-          {/* Search & Organizer Filters */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search title, venue, or club..."
-                className="w-full sm:w-64 rounded-md border border-neutral-300 bg-white py-1.5 pl-8 pr-3 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-[#A4161A] focus:outline-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 text-xs text-neutral-700 bg-white rounded-md px-2.5 py-1.5 border border-neutral-300">
-              <Filter className="h-3.5 w-3.5 text-neutral-400" />
-              <select
-                value={organizerFilter}
-                onChange={(e) => setOrganizerFilter(e.target.value as 'all' | 'club' | 'department')}
-                className="bg-transparent text-xs font-medium text-neutral-800 focus:outline-none cursor-pointer"
-              >
-                <option value="all">All Organizers</option>
-                <option value="club">Student Clubs</option>
-                <option value="department">Academic Departments</option>
-              </select>
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Filter className="h-4 w-4 text-neutral-400 shrink-0" />
+            <select
+              value={organizerFilter}
+              onChange={(e) => setOrganizerFilter(e.target.value as any)}
+              className="w-full sm:w-auto rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-800 focus:border-[#A4161A] focus:outline-none min-h-[40px] cursor-pointer"
+            >
+              <option value="all">All Organizers</option>
+              <option value="club">Clubs</option>
+              <option value="department">Departments</option>
+            </select>
           </div>
         </div>
       </div>
 
       {/* Events Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="h-80 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200"
-            />
+            <SkeletonCard key={i} />
           ))}
         </div>
       ) : filteredList.length === 0 ? (
-        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
-          <Calendar className="mx-auto h-10 w-10 text-neutral-300" />
-          <h3 className="mt-3 text-base font-semibold text-neutral-900">
-            No events found
-          </h3>
-          <p className="mt-1 text-xs text-neutral-500">
-            {selectedFestTab === 'past_fests_archive'
-              ? 'No past events archived under this category.'
-              : 'Try selecting a different tab or adjusting your search filters.'}
-          </p>
-        </div>
+        <EmptyState
+          icon={<Calendar className="h-10 w-10 text-neutral-400" />}
+          title="No events found"
+          description="Try switching categories or clearing search filters to see other schedules."
+          action={
+            <Button variant="secondary" size="sm" onClick={() => { setSearchQuery(''); setOrganizerFilter('all'); }}>
+              Reset Filters
+            </Button>
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredList.map((event) => {
-            const { dateStr, startTimeStr, endTimeStr } = formatEventDate(
-              event.start_time,
-              event.end_time
-            );
             const hall = halls.find((h) => h.id === event.hall_id) || event.halls;
             const festObj = festsById.get(event.fest_id || '') || event.fests;
 
@@ -673,6 +530,7 @@ export default function EventsPage() {
             const evEndMs = new Date(event.end_time).getTime();
             const hasStarted = nowTime >= evStartMs;
             const hasEnded = nowTime > evEndMs;
+            const isOngoing = nowTime >= evStartMs && nowTime <= evEndMs;
 
             const isHost = !!(
               userProfile?.email &&
@@ -694,87 +552,94 @@ export default function EventsPage() {
             const volunteersNeeded = event.volunteers_needed || 0;
 
             return (
-              <div
+              <Card
                 key={event.id}
-                className="flex flex-col overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs transition-colors hover:border-neutral-300"
+                padding="none"
+                hoverEffect
+                className="flex flex-col overflow-hidden"
               >
-                {/* Poster on top */}
-                <div className="relative h-44 w-full overflow-hidden bg-neutral-100 border-b border-neutral-200">
+                {/* Poster Container (Fixed 16:9 Aspect Ratio) */}
+                <div className="relative aspect-16/9 w-full overflow-hidden bg-neutral-100 border-b border-neutral-200">
                   {event.poster_url ? (
                     <img
                       src={event.poster_url}
                       alt={event.title}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                     />
                   ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-100 p-4 text-center">
-                      <Building2 className="h-8 w-8 text-neutral-400 mb-1" />
-                      <span className="text-xs font-semibold text-neutral-600">
-                        {event.club_or_dept || 'Campus Event'}
+                    <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-neutral-50 to-neutral-100 p-4 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-[#FDF2F2] flex items-center justify-center mb-2 text-[#A4161A] shadow-xs">
+                        <Building2 className="h-6 w-6" />
+                      </div>
+                      <span className="text-xs font-bold text-neutral-800">
+                        {event.organizations?.name || event.club_or_dept || 'Campus Event'}
                       </span>
+                      <span className="text-[10px] text-neutral-400 mt-0.5">Amrita Vishwa Vidyapeetham</span>
                     </div>
                   )}
 
-                  {/* Badges on poster */}
+                  {/* Badges on Poster */}
                   <div className="absolute top-2.5 left-2.5 flex flex-wrap items-center gap-1.5">
                     {festObj && (
-                      <span className="rounded bg-neutral-900/85 px-2 py-0.5 text-[10px] font-semibold text-white">
+                      <span className="rounded-full bg-neutral-900/90 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
                         {festObj.name}
                       </span>
                     )}
 
+                    {isOngoing && <StatusBadge status="ongoing" size="sm" />}
+
                     {isHost ? (
-                      <span className="rounded bg-neutral-900 border border-neutral-700 px-2 py-0.5 text-[10px] font-semibold text-white flex items-center gap-1">
-                        <Building2 className="h-2.5 w-2.5 text-[#A4161A]" /> You&apos;re hosting
+                      <span className="rounded-full bg-neutral-900 text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-xs">
+                        <Building2 className="h-3 w-3 text-[#A4161A]" /> You&apos;re hosting
                       </span>
                     ) : isRegistered ? (
                       isWaitlisted ? (
-                        <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900 flex items-center gap-1">
-                          <Hourglass className="h-2.5 w-2.5" /> Waitlisted
-                        </span>
+                        <StatusBadge status="waitlisted" size="sm" />
                       ) : (
-                        <span className="rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900 flex items-center gap-1">
-                          <CheckCircle2 className="h-2.5 w-2.5" /> Registered
-                        </span>
+                        <StatusBadge status="confirmed" size="sm" />
                       )
                     ) : hasEnded ? (
-                      <span className="rounded bg-neutral-800/80 px-2 py-0.5 text-[10px] font-medium text-white">
+                      <span className="rounded-full bg-neutral-700 text-white px-2.5 py-0.5 text-[10px] font-medium">
                         Ended
                       </span>
                     ) : isFull ? (
-                      <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900 flex items-center gap-1">
-                        <Hourglass className="h-2.5 w-2.5" /> Waitlist Open
+                      <span className="rounded-full bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1">
+                        <Hourglass className="h-3 w-3" /> Waitlist Open
                       </span>
-                    ) : (
-                      <span className="rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900 flex items-center gap-1">
-                        <CheckCircle2 className="h-2.5 w-2.5" /> Open
-                      </span>
-                    )}
+                    ) : null}
 
-                    {volunteersNeeded > 0 && (
-                      <span className="rounded bg-neutral-100 border border-neutral-300 px-2 py-0.5 text-[10px] font-medium text-neutral-800 flex items-center gap-1">
-                        <HandHelping className="h-2.5 w-2.5 text-[#A4161A]" /> Volunteers Needed
+                    {volunteersNeeded > 0 && !isHost && (
+                      <span className="rounded-full bg-white/95 text-neutral-800 border border-neutral-300 px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-xs">
+                        <HandHelping className="h-3 w-3 text-[#A4161A]" /> Volunteers
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Card Body */}
-                <div className="flex flex-1 flex-col p-4 justify-between space-y-3">
-                  <div className="space-y-1.5">
-                    {/* Club / Dept / Organization Chip & Seats */}
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="inline-flex items-center rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-700">
+                {/* Card Content Body */}
+                <div className="flex flex-1 flex-col p-4 sm:p-5 justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="font-semibold text-[#A4161A] truncate">
                         {event.organizations?.name || event.club_or_dept || (event.organizer_type === 'standalone' ? 'Standalone' : 'Campus Event')}
                       </span>
 
+                      {/* Seats indicator */}
                       {seatsLeft !== null && (
-                        <span className={`text-[11px] font-medium ${seatsLeft === 0 ? 'text-amber-700 font-semibold' : seatsLeft < 20 ? 'text-[#991B1B] font-semibold' : 'text-neutral-600'}`}>
-                          {seatsLeft === 0 ? (
-                            waitlistCount > 0 ? `Full (${waitlistCount} waitlist)` : 'Full'
-                          ) : (
-                            `${seatsLeft} seats left`
-                          )}
+                        <span
+                          className={`text-xs font-semibold shrink-0 px-2 py-0.5 rounded-full ${
+                            seatsLeft === 0
+                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                              : seatsLeft <= 15
+                              ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                              : 'bg-neutral-100 text-neutral-700'
+                          }`}
+                        >
+                          {seatsLeft === 0
+                            ? waitlistCount > 0
+                              ? `Full (${waitlistCount} WL)`
+                              : 'Full'
+                            : `${seatsLeft} seats left`}
                         </span>
                       )}
                     </div>
@@ -790,179 +655,164 @@ export default function EventsPage() {
                     )}
                   </div>
 
-                  {/* Venue & Schedule Meta */}
-                  <div className="space-y-1.5 pt-2 border-t border-neutral-100 text-xs text-neutral-600">
+                  {/* Metadata (Time & Hall) */}
+                  <div className="space-y-1.5 pt-3 border-t border-neutral-100 text-xs text-neutral-600">
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 font-medium text-neutral-800">
-                        <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
-                        {hall?.name || 'Campus Venue'}
+                      <span className="flex items-center gap-1.5 font-medium text-neutral-800 truncate">
+                        <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                        {formatHall(hall?.name, hall?.capacity)}
                       </span>
                       {hall?.capacity && (
-                        <span className="flex items-center gap-1 text-[11px] text-neutral-500">
-                          <Users className="h-3 w-3" /> {registeredCount}/{hall.capacity}
+                        <span className="text-[11px] text-neutral-500 font-mono shrink-0">
+                          {registeredCount}/{hall.capacity}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
-                      <Calendar className="h-3.5 w-3.5 text-neutral-400" />
-                      <span>{dateStr}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
-                      <Clock className="h-3.5 w-3.5 text-neutral-400" />
-                      <span>{startTimeStr} – {endTimeStr}</span>
+                    <div className="flex items-center gap-1.5 text-neutral-500 text-[11px]">
+                      <Calendar className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+                      <span>{formatEventDate(event.start_time, event.end_time)}</span>
                     </div>
                   </div>
 
-                  {/* Actions Section */}
+                  {/* Action Section */}
                   <div className="pt-2 border-t border-neutral-100 space-y-2">
                     {isHost ? (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between rounded-md bg-neutral-100 border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-800">
-                          <span className="flex items-center gap-1.5">
-                            <Building2 className="h-4 w-4 text-[#A4161A]" />
-                            You&apos;re hosting this event
-                          </span>
-                          <Link
-                            href={`/organizer/events/${event.id}`}
-                            className="inline-flex items-center gap-1 rounded bg-[#A4161A] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
-                          >
-                            Manage event
-                          </Link>
-                        </div>
+                      <div className="flex items-center justify-between rounded-lg bg-neutral-100 p-2.5">
+                        <span className="text-xs font-semibold text-neutral-800 flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5 text-[#A4161A]" />
+                          Host
+                        </span>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => router.push(`/organizer/events/${event.id}`)}
+                        >
+                          Manage Event
+                        </Button>
                       </div>
                     ) : isRegistered ? (
-                      <div className="space-y-1.5">
-                        {isWaitlisted ? (
-                          <div className="flex items-center justify-between rounded-md bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-900">
-                            <span className="flex items-center gap-1.5">
-                              <Hourglass className="h-3.5 w-3.5 text-amber-700" />
-                              Waitlisted
-                            </span>
-                            <Link
-                              href="/my-events"
-                              className="text-xs text-[#A4161A] hover:underline font-semibold"
-                            >
-                              Check Rank
-                            </Link>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between rounded-md bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-900">
-                            <span className="flex items-center gap-1.5">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
-                              Pass Confirmed
-                            </span>
-                            <Link
-                              href="/my-events"
-                              className="text-xs text-[#A4161A] hover:underline font-semibold"
-                            >
-                              View Pass
-                            </Link>
-                          </div>
-                        )}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-xs">
+                          <span className="font-semibold text-emerald-900 flex items-center gap-1.5">
+                            {isWaitlisted ? (
+                              <>
+                                <Hourglass className="h-3.5 w-3.5 text-amber-600" />
+                                On Waitlist
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                Pass Ready
+                              </>
+                            )}
+                          </span>
+                          <Link
+                            href="/my-events"
+                            className="text-xs font-bold text-[#A4161A] hover:underline"
+                          >
+                            View &rarr;
+                          </Link>
+                        </div>
 
                         {!hasStarted && (
                           <button
-                            onClick={() => handleCancelRegistration(myReg.id, event.title)}
-                            disabled={actionLoadingId === myReg.id}
-                            className="w-full text-center text-[11px] font-medium text-[#991B1B] hover:underline cursor-pointer"
+                            type="button"
+                            onClick={() => handleCancelRegistration(myReg!.id, event.title)}
+                            disabled={actionLoadingId === myReg!.id}
+                            className="w-full text-center text-xs font-medium text-rose-700 hover:underline cursor-pointer disabled:opacity-50"
                           >
-                            {actionLoadingId === myReg.id ? 'Cancelling...' : 'Cancel Registration'}
+                            {actionLoadingId === myReg!.id ? 'Cancelling...' : 'Cancel Registration'}
                           </button>
                         )}
                       </div>
                     ) : hasEnded ? (
-                      <div className="rounded-md bg-neutral-100 py-2 text-center text-xs font-medium text-neutral-500">
+                      <div className="rounded-lg bg-neutral-100 py-2.5 text-center text-xs font-semibold text-neutral-500">
                         Event Concluded
                       </div>
                     ) : (
-                      <div className="space-y-1.5">
-                        <button
-                          onClick={() => handleRegister(event)}
-                          disabled={actionLoadingId === event.id}
-                          className="w-full flex items-center justify-center gap-1.5 rounded-md bg-[#A4161A] py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                          {actionLoadingId === event.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : isFull ? (
-                            <>
-                              <Hourglass className="h-3.5 w-3.5" />
-                              Join Waitlist
-                            </>
-                          ) : (
-                            <>
-                              <QrCode className="h-3.5 w-3.5" />
-                              Register
-                            </>
-                          )}
-                        </button>
+                      <div className="space-y-2">
+                        {event.registration_link ? (
+                          <a
+                            href={event.registration_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#A4161A] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors shadow-xs min-h-[44px]"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Register Externally
+                          </a>
+                        ) : (
+                          <Button
+                            variant="primary"
+                            size="md"
+                            onClick={() => handleRegister(event)}
+                            isLoading={actionLoadingId === event.id}
+                            className="w-full min-h-[44px]"
+                            leftIcon={
+                              isFull ? (
+                                <Hourglass className="h-4 w-4" />
+                              ) : (
+                                <QrCode className="h-4 w-4" />
+                              )
+                            }
+                          >
+                            {isFull ? 'Join Waitlist' : 'Register Now'}
+                          </Button>
+                        )}
 
-                        {/* Volunteer section */}
+                        {/* Volunteer Button / Status */}
                         {!isHost && (volunteersNeeded > 0 || (myVol && myVol.status !== 'withdrawn')) && (
-                          <div className="pt-1.5 border-t border-neutral-100 space-y-1.5">
+                          <div className="pt-1 border-t border-neutral-100">
                             {myVol && myVol.status !== 'withdrawn' ? (
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-between gap-2 rounded-md bg-neutral-50 border border-neutral-200 px-2.5 py-1.5 text-[11px]">
-                                  <div>
-                                    {myVol.status === 'accepted' ? (
-                                      <span className="font-semibold text-emerald-800 flex items-center gap-1">
-                                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Accepted as Volunteer
-                                      </span>
-                                    ) : myVol.status === 'rejected' ? (
-                                      <span className="font-semibold text-neutral-600 flex items-center gap-1">
-                                        <XCircle className="h-3 w-3 text-neutral-400" /> Not selected
-                                      </span>
-                                    ) : (
-                                      <span className="font-semibold text-amber-800 flex items-center gap-1">
-                                        <Clock className="h-3 w-3 text-amber-600" /> Applied (pending review)
-                                      </span>
-                                    )}
-                                  </div>
+                              <div className="flex items-center justify-between rounded-lg bg-neutral-50 p-2 text-xs">
+                                <span className="font-semibold text-neutral-700 flex items-center gap-1">
+                                  {myVol.status === 'accepted' ? (
+                                    <span className="text-emerald-700 flex items-center gap-1">
+                                      <CheckCircle2 className="h-3 w-3" /> Accepted Volunteer
+                                    </span>
+                                  ) : myVol.status === 'rejected' ? (
+                                    <span className="text-neutral-500">Not selected</span>
+                                  ) : (
+                                    <span className="text-amber-700 flex items-center gap-1">
+                                      <Clock className="h-3 w-3" /> Application Pending
+                                    </span>
+                                  )}
+                                </span>
 
-                                  {myVol.status !== 'rejected' && !hasEnded && (
+                                {myVol.status === 'accepted' ? (
+                                  <Link
+                                    href={`/organizer/scan/${event.id}`}
+                                    className="text-xs font-bold text-emerald-800 hover:underline flex items-center gap-1"
+                                  >
+                                    <Camera className="h-3 w-3" /> Scanner
+                                  </Link>
+                                ) : (
+                                  !hasEnded && (
                                     <button
+                                      type="button"
                                       onClick={() => handleWithdrawVolunteer(event)}
                                       disabled={actionLoadingId === `vol-with-${event.id}`}
-                                      className="text-[11px] text-neutral-500 hover:text-[#991B1B] underline transition-colors cursor-pointer disabled:opacity-50"
+                                      className="text-[11px] text-neutral-500 hover:text-rose-700 underline cursor-pointer"
                                     >
-                                      {actionLoadingId === `vol-with-${event.id}` ? 'Withdrawing...' : 'Withdraw'}
+                                      Withdraw
                                     </button>
-                                  )}
-                                </div>
-
-                                {myVol.status === 'accepted' && (
-                                  <div className="space-y-1">
-                                    <Link
-                                      href={`/organizer/scan/${event.id}`}
-                                      className="w-full flex items-center justify-center gap-1.5 rounded-md bg-emerald-700 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shadow-xs"
-                                    >
-                                      <Camera className="h-3.5 w-3.5" />
-                                      Scan attendance
-                                    </Link>
-                                    {(nowTime < evStartMs - 30 * 60 * 1000 || nowTime > evEndMs + 30 * 60 * 1000) && (
-                                      <p className="text-[10px] text-neutral-500 text-center italic">
-                                        Scanning opens 30 min before the event starts and closes 30 min after it ends
-                                      </p>
-                                    )}
-                                  </div>
+                                  )
                                 )}
                               </div>
-                            ) : !hasStarted && (
-                              <button
-                                onClick={() => handleApplyVolunteer(event)}
-                                disabled={actionLoadingId === `vol-${event.id}`}
-                                className="w-full flex items-center justify-center gap-1.5 rounded-md border border-neutral-300 bg-white py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer disabled:opacity-50"
-                              >
-                                {actionLoadingId === `vol-${event.id}` ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <>
-                                    <HandHelping className="h-3.5 w-3.5 text-[#A4161A]" />
-                                    Volunteer
-                                  </>
-                                )}
-                              </button>
+                            ) : (
+                              !hasStarted && (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleApplyVolunteer(event)}
+                                  isLoading={actionLoadingId === `vol-${event.id}`}
+                                  className="w-full text-xs"
+                                  leftIcon={<HandHelping className="h-3.5 w-3.5 text-[#A4161A]" />}
+                                >
+                                  Apply as Volunteer
+                                </Button>
+                              )
                             )}
                           </div>
                         )}
@@ -970,7 +820,7 @@ export default function EventsPage() {
                     )}
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

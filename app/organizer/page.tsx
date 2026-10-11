@@ -7,6 +7,17 @@ import type { CampusEvent, Hall, AllowedUser, UserRole, Volunteer } from '@/lib/
 import EventFormModal from '@/components/EventFormModal';
 import ApprovalTracker from '@/components/ApprovalTracker';
 import {
+  PageHeader,
+  Card,
+  StatusBadge,
+  Button,
+  Tabs,
+  EmptyState,
+  SkeletonCard,
+  useToast,
+} from '@/components/ui';
+import { formatEventDate, formatHall } from '@/lib/format';
+import {
   Calendar,
   Plus,
   Clock,
@@ -25,11 +36,8 @@ import {
   Users,
   HandHelping,
   Hourglass,
-  UserCheck,
-  UserX,
-  X,
-  Loader2,
   TrendingUp,
+  ChevronRight,
 } from 'lucide-react';
 
 interface EventStats {
@@ -38,6 +46,7 @@ interface EventStats {
 }
 
 export default function OrganizerPage() {
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<AllowedUser | null>(null);
   const [events, setEvents] = useState<CampusEvent[]>([]);
   const [halls, setHalls] = useState<Hall[]>([]);
@@ -100,7 +109,6 @@ export default function OrganizerPage() {
         setEventStats(statsMap);
       }
 
-      // Fetch volunteer rosters via security definer RPC for approved events needing volunteers
       const approvedVolEvents = loadedEvents.filter(
         (e) => e.status === 'approved' && (e.volunteers_needed || 0) > 0
       );
@@ -125,12 +133,13 @@ export default function OrganizerPage() {
         })
       );
       setVolunteersByEvent(volMap);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading organizer data:', err);
+      showToast('error', err?.message || 'Failed to load host dashboard');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, showToast]);
 
   useEffect(() => {
     loadData();
@@ -151,9 +160,10 @@ export default function OrganizerPage() {
     try {
       const { error } = await supabase.from('events').delete().eq('id', id);
       if (error) throw error;
+      showToast('success', 'Draft deleted');
       loadData();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to delete event.');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Failed to delete event');
     }
   };
 
@@ -168,9 +178,10 @@ export default function OrganizerPage() {
         .eq('id', event.id);
 
       if (error) throw error;
+      showToast('success', 'Proposal submitted for administrative review');
       loadData();
-    } catch (err: unknown) {
-      let msg = err instanceof Error ? err.message : 'Failed to submit event.';
+    } catch (err: any) {
+      let msg = err?.message || 'Failed to submit event.';
       if (
         msg.includes('Another event has booked this hall') ||
         msg.includes('already booked for that time') ||
@@ -179,7 +190,7 @@ export default function OrganizerPage() {
       ) {
         msg = 'Another event has booked this hall for that time. Please choose a different hall or time.';
       }
-      alert(msg);
+      showToast('error', msg);
     }
   };
 
@@ -198,192 +209,78 @@ export default function OrganizerPage() {
     return events.filter((e) => e.status === activeTab);
   }, [events, activeTab]);
 
-  const formatDateTime = (iso: string) => {
-    const d = new Date(iso);
-    return {
-      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-    };
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return (
-          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-medium text-emerald-800">
-            <CheckCircle2 className="h-3 w-3 text-emerald-700" /> Approved
-          </span>
-        );
-      case 'submitted':
-        return (
-          <span className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">
-            <Clock className="h-3 w-3 text-amber-700" /> Submitted (In Review)
-          </span>
-        );
-      case 'rejected':
-        return (
-          <span className="inline-flex items-center gap-1 rounded bg-red-50 border border-red-200 px-2 py-0.5 text-xs font-medium text-[#991B1B]">
-            <AlertCircle className="h-3 w-3 text-[#991B1B]" /> Revision Required
-          </span>
-        );
-      case 'draft':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 rounded bg-neutral-100 border border-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-600">
-            <FileText className="h-3 w-3 text-neutral-500" /> Draft
-          </span>
-        );
-    }
-  };
-
   const orgName = profile?.club_name || profile?.department || profile?.name || 'Organizer';
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      {/* Header Profile Banner */}
-      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 rounded bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
-              Role: {(profile?.role || 'student').toUpperCase()}
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
-              {orgName} Dashboard
-            </h1>
-            <p className="text-xs text-neutral-500 font-mono">
-              {profile?.email}
-            </p>
-          </div>
+  const filterTabs = [
+    { id: 'all', label: 'All', count: counts.all },
+    { id: 'draft', label: 'Drafts', count: counts.draft },
+    { id: 'submitted', label: 'Submitted', count: counts.submitted },
+    { id: 'approved', label: 'Approved', count: counts.approved },
+    { id: 'rejected', label: 'Action Required', count: counts.rejected },
+  ];
 
+  return (
+    <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 space-y-6">
+      {/* Page Header */}
+      <PageHeader
+        title={`${orgName} Hub`}
+        description={`Manage event proposals, volunteers, and attendance scanning for ${profile?.email}.`}
+        actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/organizer/insights"
-              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3.5 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
-            >
-              <TrendingUp className="h-4 w-4 text-[#A4161A]" />
-              Analytics &amp; AI
+            <Link href="/organizer/insights">
+              <Button variant="secondary" size="sm">
+                <TrendingUp className="h-4 w-4 text-[#A4161A]" /> Analytics &amp; AI
+              </Button>
             </Link>
 
-            <button
-              onClick={handleOpenCreate}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              Propose Event
-            </button>
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              <Plus className="h-4 w-4" /> Propose Event
+            </Button>
 
-            <button
-              onClick={() => loadData()}
-              className="rounded-md border border-neutral-300 bg-white p-2 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
-              title="Refresh dashboard"
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => loadData(false)}
+              aria-label="Refresh events"
             >
               <RefreshCw className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Stats Grid */}
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-neutral-200 text-xs">
-          <button
-            onClick={() => setActiveTab('draft')}
-            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
-              activeTab === 'draft'
-                ? 'border-[#A4161A] bg-neutral-100 text-neutral-900 font-semibold'
-                : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-            }`}
-          >
-            <div className="text-neutral-500">Drafts</div>
-            <div className="text-xl font-bold text-neutral-900 mt-0.5">{counts.draft}</div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('submitted')}
-            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
-              activeTab === 'submitted'
-                ? 'border-[#A4161A] bg-amber-50 text-amber-900 font-semibold'
-                : 'border-amber-200 bg-amber-50/50 text-amber-800 hover:bg-amber-50'
-            }`}
-          >
-            <div className="text-amber-700">Submitted (In Review)</div>
-            <div className="text-xl font-bold text-amber-900 mt-0.5">{counts.submitted}</div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('approved')}
-            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
-              activeTab === 'approved'
-                ? 'border-[#A4161A] bg-emerald-50 text-emerald-900 font-semibold'
-                : 'border-emerald-200 bg-emerald-50/50 text-emerald-800 hover:bg-emerald-50'
-            }`}
-          >
-            <div className="text-emerald-700">Approved Events</div>
-            <div className="text-xl font-bold text-emerald-900 mt-0.5">{counts.approved}</div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('rejected')}
-            className={`p-3 rounded-md border text-left transition-colors cursor-pointer ${
-              activeTab === 'rejected'
-                ? 'border-[#A4161A] bg-red-50 text-[#991B1B] font-semibold'
-                : 'border-red-200 bg-red-50/50 text-[#991B1B] hover:bg-red-50'
-            }`}
-          >
-            <div className="text-[#991B1B]">Action Required</div>
-            <div className="text-xl font-bold text-[#991B1B] mt-0.5">{counts.rejected}</div>
-          </button>
-        </div>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-1 border-b border-neutral-200 pb-2 overflow-x-auto text-xs">
-        {(['all', 'draft', 'submitted', 'approved', 'rejected'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`rounded px-3 py-1.5 font-medium capitalize transition-colors cursor-pointer ${
-              activeTab === tab
-                ? 'bg-neutral-900 text-white font-semibold'
-                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
-            }`}
-          >
-            {tab === 'all' ? `All (${counts.all})` : `${tab} (${counts[tab]})`}
-          </button>
-        ))}
-      </div>
+      {/* Status Filter Tabs */}
+      <Tabs
+        tabs={filterTabs}
+        activeTab={activeTab}
+        onChange={(id) => setActiveTab(id as any)}
+        variant="pills"
+      />
 
       {/* Events List */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-28 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200"
-            />
-          ))}
+        <div className="space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       ) : filteredEvents.length === 0 ? (
-        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center">
-          <Calendar className="mx-auto h-10 w-10 text-neutral-300" />
-          <h3 className="mt-3 text-base font-semibold text-neutral-900">
-            No {activeTab !== 'all' ? activeTab : ''} events found
-          </h3>
-          <p className="mt-1 text-xs text-neutral-500">
-            {activeTab === 'draft'
-              ? 'You have no saved drafts.'
-              : 'Create an event proposal to submit for review.'}
-          </p>
-          <button
-            onClick={handleOpenCreate}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Propose Event
-          </button>
-        </div>
+        <EmptyState
+          icon={<Calendar className="h-6 w-6 text-neutral-400" />}
+          title={`No ${activeTab !== 'all' ? activeTab : ''} events found`}
+          description={
+            activeTab === 'draft'
+              ? 'You do not have any saved drafts.'
+              : 'Create a new campus event proposal to begin the approval process.'
+          }
+          action={
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              <Plus className="h-4 w-4" /> Propose Event
+            </Button>
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-4">
           {filteredEvents.map((event) => {
-            const startFmt = formatDateTime(event.start_time);
-            const endFmt = formatDateTime(event.end_time);
             const hall = halls.find((h) => h.id === event.hall_id) || event.halls;
             const stats = eventStats[event.id] || { registered: 0, waitlisted: 0 };
             const vols = volunteersByEvent[event.id] || [];
@@ -392,216 +289,135 @@ export default function OrganizerPage() {
             const volunteersNeeded = event.volunteers_needed || 0;
 
             return (
-              <div
-                key={event.id}
-                className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs"
-              >
+              <Card key={event.id} className="overflow-hidden">
                 <div className="p-4 sm:p-5">
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    {/* Left: Poster + Details */}
-                    <div className="flex items-start gap-4 flex-1">
+                    {/* Left details */}
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
                       {event.poster_url ? (
                         <img
                           src={event.poster_url}
                           alt={event.title}
-                          className="h-20 w-20 rounded object-cover border border-neutral-200 shrink-0"
+                          className="h-20 w-28 rounded-lg object-cover border border-neutral-200 shrink-0"
                         />
                       ) : (
-                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded bg-neutral-100 border border-neutral-200 text-neutral-500">
-                          <Building2 className="h-6 w-6 text-neutral-400" />
+                        <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-400">
+                          <Building2 className="h-6 w-6" />
                         </div>
                       )}
 
-                      <div className="space-y-1 flex-1 min-w-0">
+                      <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          {getStatusBadge(event.status)}
+                          <StatusBadge status={event.status as any} />
                           {(event.organizations?.name || event.club_or_dept) && (
-                            <span className="inline-flex items-center rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-800">
-                              Org: {event.organizations?.name || event.club_or_dept}
+                            <span className="rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-800">
+                              {event.organizations?.name || event.club_or_dept}
                             </span>
                           )}
                           {event.fests && (
-                            <span className="inline-flex items-center rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-800">
-                              Fest: {event.fests.name}
+                            <span className="rounded bg-neutral-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+                              {event.fests.name}
                             </span>
                           )}
-
                           {stats.registered > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 border border-emerald-200">
-                              <Users className="h-3 w-3" /> {stats.registered} confirmed
+                            <span className="rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                              {stats.registered} registered
                             </span>
                           )}
-
                           {stats.waitlisted > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200">
-                              <Hourglass className="h-3 w-3" /> {stats.waitlisted} waitlisted
+                            <span className="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                              {stats.waitlisted} waitlisted
                             </span>
                           )}
-
                           {pendingVolsCount > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
-                              <HandHelping className="h-3 w-3 text-amber-700" /> {pendingVolsCount} pending volunteers
+                            <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[11px] font-bold text-amber-900">
+                              {pendingVolsCount} pending volunteers
                             </span>
-                          )}
-
-                          {volunteersNeeded > 0 && (
-                            <Link
-                              href={`/organizer/events/${event.id}`}
-                              className="inline-flex items-center gap-1.5 rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-800 border border-neutral-300 hover:bg-neutral-200 transition-colors"
-                            >
-                              <HandHelping className="h-3 w-3 text-[#A4161A]" />
-                              <span>Volunteers: accepted {acceptedVolsCount} / needed {volunteersNeeded}</span>
-                            </Link>
                           )}
                         </div>
 
-                        <h3 className="text-base font-bold text-neutral-900 truncate">
+                        <h2 className="text-base font-bold text-neutral-900 truncate">
                           <Link
                             href={`/organizer/events/${event.id}`}
                             className="hover:text-[#A4161A] transition-colors"
                           >
                             {event.title}
                           </Link>
-                        </h3>
+                        </h2>
 
-                        {event.description && (
-                          <p className="text-xs text-neutral-500 line-clamp-1">
-                            {event.description}
-                          </p>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-600 pt-1">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-600">
                           <div className="flex items-center gap-1 text-neutral-800 font-medium">
                             <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
-                            {hall?.name || 'Venue'} {hall?.capacity ? `(${hall.capacity} seats)` : ''}
+                            {formatHall(hall?.name, hall?.capacity)}
                           </div>
-
-                          <div className="flex items-center gap-1 font-mono text-[11px] text-neutral-500">
+                          <div className="flex items-center gap-1 text-neutral-500 font-mono text-[11px]">
                             <Calendar className="h-3.5 w-3.5 text-neutral-400" />
-                            {startFmt.date} • {startFmt.time} – {endFmt.time}
+                            {formatEventDate(event.start_time, event.end_time)}
                           </div>
-
-                          {event.registration_link && (
-                            <a
-                              href={event.registration_link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-1 text-[#A4161A] font-medium hover:underline"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" /> Registration Link
-                            </a>
-                          )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Right: Actions */}
-                    <div className="flex flex-wrap items-center gap-1.5 self-end md:self-start shrink-0">
-                      {/* Host Dashboard Link on every event card */}
-                      <Link
-                        href={`/organizer/events/${event.id}`}
-                        className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors"
-                      >
-                        Dashboard
+                    {/* Right actions */}
+                    <div className="flex flex-wrap items-center gap-2 self-end md:self-start shrink-0">
+                      <Link href={`/organizer/events/${event.id}`}>
+                        <Button variant="primary" size="sm">
+                          Dashboard <ChevronRight className="h-4 w-4" />
+                        </Button>
                       </Link>
 
                       {event.status === 'approved' && (
-                        <>
-                          <Link
-                            href={`/organizer/scan/${event.id}`}
-                            className="inline-flex items-center gap-1 rounded bg-[#A4161A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
-                          >
-                            <QrCode className="h-3.5 w-3.5" /> Scan attendance
-                          </Link>
-
-                          <Link
-                            href={`/organizer/events/${event.id}/od`}
-                            className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-                          >
-                            <FileSpreadsheet className="h-3.5 w-3.5" /> OD export
-                          </Link>
-
-                          {volunteersNeeded > 0 && (
-                            <Link
-                              href={`/organizer/events/${event.id}/volunteers`}
-                              className="inline-flex items-center gap-1.5 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-                            >
-                              <HandHelping className="h-3.5 w-3.5 text-[#A4161A]" />
-                              <span>Volunteers</span>
-                              {pendingVolsCount > 0 && (
-                                <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[10px] font-bold text-white">
-                                  {pendingVolsCount}
-                                </span>
-                              )}
-                              <span className="text-[11px] text-neutral-500 font-mono">
-                                (accepted {acceptedVolsCount} / needed {volunteersNeeded})
-                              </span>
-                            </Link>
-                          )}
-
-                          <Link
-                            href={`/organizer/events/${event.id}/insights`}
-                            className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-                          >
-                            Insights
-                          </Link>
-                        </>
+                        <Link href={`/organizer/scan/${event.id}`}>
+                          <Button variant="secondary" size="sm">
+                            <QrCode className="h-4 w-4 text-[#A4161A]" /> Scan
+                          </Button>
+                        </Link>
                       )}
 
-                      {event.status === 'rejected' && (
-                        <button
+                      {(event.status === 'draft' || event.status === 'rejected') && (
+                        <Button
+                          variant="primary"
+                          size="sm"
                           onClick={() => handleDirectSubmit(event)}
-                          className="flex items-center gap-1 rounded bg-[#A4161A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
                         >
-                          <Send className="h-3.5 w-3.5" /> Resubmit
-                        </button>
+                          <Send className="h-4 w-4" /> Submit
+                        </Button>
                       )}
+
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(event)}>
+                        <Edit3 className="h-4 w-4" /> Edit
+                      </Button>
 
                       {event.status === 'draft' && (
-                        <button
-                          onClick={() => handleDirectSubmit(event)}
-                          className="flex items-center gap-1 rounded bg-[#A4161A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
-                        >
-                          <Send className="h-3.5 w-3.5" /> Submit
-                        </button>
-                      )}
-
-                      {/* Edit Button */}
-                      <button
-                        onClick={() => handleOpenEdit(event)}
-                        className="flex items-center gap-1 rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 cursor-pointer transition-colors"
-                      >
-                        <Edit3 className="h-3.5 w-3.5" /> Edit
-                      </button>
-
-                      {/* Delete Draft Button */}
-                      {event.status === 'draft' && (
-                        <button
+                        <Button
+                          variant="destructive"
+                          size="sm"
                           onClick={() => handleDeleteDraft(event.id)}
-                          className="rounded border border-red-200 bg-red-50 p-1.5 text-[#991B1B] hover:bg-red-100 transition-colors cursor-pointer"
-                          title="Delete draft"
+                          aria-label="Delete draft"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
                   </div>
 
-                  {/* Rejection Reason Box */}
+                  {/* Rejection remarks */}
                   {event.status === 'rejected' && event.rejection_reason && (
-                    <div className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2">
+                    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
                       <div>
-                        <span className="font-semibold">Review Remarks: </span>
+                        <span className="font-bold">Review Remarks: </span>
                         <span>{event.rejection_reason}</span>
                       </div>
                     </div>
                   )}
 
-                  {/* Approval Progress Tracker (Requirement 6) */}
-                  <ApprovalTracker event={event} approvals={event.approvals || []} />
+                  {/* Approval Tracker */}
+                  <div className="mt-4 pt-3 border-t border-neutral-100">
+                    <ApprovalTracker event={event} approvals={event.approvals || []} />
+                  </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

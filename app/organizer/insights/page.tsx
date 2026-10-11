@@ -6,6 +6,17 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { AllowedUser, CampusEvent, Organization, OrganizationAIAdvice, OrganizerPlanningAdvice } from '@/lib/types';
 import {
+  PageHeader,
+  Card,
+  StatusBadge,
+  Button,
+  DataTable,
+  EmptyState,
+  SkeletonCard,
+  useToast,
+} from '@/components/ui';
+import { formatSimpleDate, formatHall } from '@/lib/format';
+import {
   Sparkles,
   ArrowLeft,
   Calendar,
@@ -22,6 +33,7 @@ import {
   Loader2,
   ChevronRight,
   ShieldAlert,
+  BarChart3,
 } from 'lucide-react';
 
 interface AggregateStats {
@@ -49,6 +61,7 @@ interface EventRow {
 
 export default function OrganizationInsightsPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<AllowedUser | null>(null);
   const [myOrganizations, setMyOrganizations] = useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
@@ -58,15 +71,12 @@ export default function OrganizationInsightsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingOrgData, setLoadingOrgData] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [genError, setGenError] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
   // 1. Load User Profile and Available Organizations
   const loadUserOrgs = useCallback(async () => {
     setLoading(true);
-    setErrorMsg(null);
 
     try {
       const {
@@ -118,74 +128,65 @@ export default function OrganizationInsightsPage() {
       const userClubs = orgsList.filter((o) => o.type === 'club' && memberOrgIds.has(o.id));
 
       // Query derived department
-      let userDepts: Organization[] = [];
-      if (userProfile?.role === 'faculty' && userProfile.department) {
-        const facDept = orgsList.find(
-          (o) => o.type === 'department' && o.name.toLowerCase() === userProfile.department?.toLowerCase()
-        );
-        if (facDept) userDepts = [facDept];
-      } else if (userProfile?.role === 'student' && userProfile.roll_no) {
-        const { data: ccdData } = await supabase.from('course_code_departments').select('*');
-        const lowerRoll = userProfile.roll_no.toLowerCase();
-        const matchedCcd = (ccdData || []).find((c) => lowerRoll.includes(c.course_code.toLowerCase()));
-        if (matchedCcd) {
-          const matchedDept = orgsList.find((o) => o.id === matchedCcd.organization_id);
-          if (matchedDept) userDepts = [matchedDept];
-        }
+      let userDept: Organization | null = null;
+      if (userProfile?.department) {
+        userDept =
+          orgsList.find(
+            (o) =>
+              o.type === 'department' &&
+              o.name.toLowerCase().trim() === userProfile.department?.toLowerCase().trim()
+          ) || null;
       }
 
-      const combined = [...userClubs, ...userDepts];
-      setMyOrganizations(combined);
+      const accessible = [...userClubs];
+      if (userDept && !accessible.some((o) => o.id === userDept!.id)) {
+        accessible.push(userDept);
+      }
 
-      if (combined.length > 0) {
-        setSelectedOrgId((prev) => (prev && combined.some((o) => o.id === prev) ? prev : combined[0].id));
+      setMyOrganizations(accessible);
+      if (accessible.length > 0 && !selectedOrgId) {
+        setSelectedOrgId(accessible[0].id);
       }
     } catch (err: any) {
-      console.error('Error loading user organizations:', err);
-      setErrorMsg(err?.message || 'Failed to load organizations.');
+      console.error('Error loading organization list:', err);
+      showToast('error', err?.message || 'Failed to load organizations.');
     } finally {
       setLoading(false);
     }
-  }, [supabase, router, selectedOrgId]);
+  }, [supabase, router, selectedOrgId, showToast]);
 
   useEffect(() => {
     loadUserOrgs();
   }, [loadUserOrgs]);
 
-  // 2. Load Organization Aggregates & Events for selectedOrgId
+  // 2. Load Organization Statistics
   const loadOrgData = useCallback(async (orgId: string) => {
-    if (!orgId) return;
     setLoadingOrgData(true);
-    setErrorMsg(null);
-    setGenError(null);
 
     try {
-      const nowIso = new Date().toISOString();
-
       // Fetch past approved events for this organization
-      const { data: pastEvents, error: eventsErr } = await supabase
+      const { data: events, error: evErr } = await supabase
         .from('events')
-        .select('*, halls:halls!events_hall_id_fkey(id, name, capacity)')
+        .select('id, title, start_time, end_time, hall_id, halls(name), status')
         .eq('organization_id', orgId)
         .eq('status', 'approved')
-        .lt('end_time', nowIso)
         .order('start_time', { ascending: false });
 
-      if (eventsErr) throw eventsErr;
+      if (evErr) throw evErr;
 
-      const eventsList = (pastEvents as CampusEvent[]) || [];
+      const eventsList = events || [];
       const eventIds = eventsList.map((e) => e.id);
 
-      // Fetch cached AI advice for this organization
+      // Fetch AI advice cache
       const { data: adviceRow } = await supabase
         .from('organization_ai_advice')
         .select('*')
         .eq('organization_id', orgId)
         .maybeSingle();
 
-      if (adviceRow?.advice) {
+      if (adviceRow) {
         setCachedAdvice({
-          advice: adviceRow.advice as OrganizerPlanningAdvice,
+          advice: adviceRow.advice,
           generated_at: adviceRow.generated_at,
         });
       } else {
@@ -206,7 +207,7 @@ export default function OrganizationInsightsPage() {
         return;
       }
 
-      // Fetch registrations and anonymized reviews
+      // Fetch registrations and reviews for all past events
       const [regsRes, reviewsRes] = await Promise.all([
         supabase
           .from('registrations')
@@ -218,10 +219,11 @@ export default function OrganizationInsightsPage() {
           .in('event_id', eventIds),
       ]);
 
-      const regs = regsRes.data || [];
-      const revs = reviewsRes.data || [];
+      const allRegs = regsRes.data || [];
+      const allReviews = reviewsRes.data || [];
 
-      const confirmedRegs = regs.filter((r) => r.status === 'confirmed');
+      // Compute aggregates
+      const confirmedRegs = allRegs.filter((r) => r.status === 'confirmed');
       const attendedRegs = confirmedRegs.filter((r) => r.checked_in_at !== null);
 
       const totalRegistered = confirmedRegs.length;
@@ -231,20 +233,18 @@ export default function OrganizationInsightsPage() {
           ? Math.round(((totalRegistered - totalAttended) / totalRegistered) * 100)
           : 0;
 
-      const allRatings = revs.map((r) => r.rating);
-      const averageRating =
-        allRatings.length > 0
-          ? allRatings.reduce((a, b) => a + b, 0) / allRatings.length
-          : 0;
+      const totalRating = allReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+      const averageRating = allReviews.length > 0 ? totalRating / allReviews.length : 0;
 
-      // Slot & Hall aggregations
+      // Group by event
       const slotMap: Record<string, { total: number; attended: number }> = {};
       const hallMap: Record<string, { total: number; attended: number; count: number; name: string }> = {};
 
-      const rows: EventRow[] = eventsList.map((ev) => {
+      const rows: EventRow[] = eventsList.map((ev: any) => {
         const evRegs = confirmedRegs.filter((r) => r.event_id === ev.id);
         const evAtt = evRegs.filter((r) => r.checked_in_at !== null);
-        const evRevs = revs.filter((r) => r.event_id === ev.id);
+        const evRevs = allReviews.filter((r) => r.event_id === ev.id);
+
         const evAvgRating =
           evRevs.length > 0
             ? evRevs.reduce((acc, curr) => acc + curr.rating, 0) / evRevs.length
@@ -255,9 +255,9 @@ export default function OrganizationInsightsPage() {
             : 0;
 
         const startH = new Date(ev.start_time).getHours();
-        let slotKey = 'Evening (5 PM onwards)';
-        if (startH < 12) slotKey = 'Morning (Before 12 PM)';
-        else if (startH < 17) slotKey = 'Afternoon (12 PM - 5 PM)';
+        let slotKey = 'Evening (5 PM+)';
+        if (startH < 12) slotKey = 'Morning (Pre-noon)';
+        else if (startH < 17) slotKey = 'Afternoon (12-5 PM)';
 
         if (!slotMap[slotKey]) slotMap[slotKey] = { total: 0, attended: 0 };
         slotMap[slotKey].total += evRegs.length;
@@ -314,11 +314,11 @@ export default function OrganizationInsightsPage() {
       setEventRows(rows);
     } catch (err: any) {
       console.error('Error loading organization stats:', err);
-      setErrorMsg(err?.message || 'Failed to load organization insights.');
+      showToast('error', err?.message || 'Failed to load organization insights.');
     } finally {
       setLoadingOrgData(false);
     }
-  }, [supabase]);
+  }, [supabase, showToast]);
 
   useEffect(() => {
     if (selectedOrgId) {
@@ -330,7 +330,6 @@ export default function OrganizationInsightsPage() {
   const handleGenerateAdvice = async () => {
     if (!selectedOrgId) return;
     setGenerating(true);
-    setGenError(null);
 
     try {
       const res = await fetch('/api/organizer/generate-insights', {
@@ -341,20 +340,17 @@ export default function OrganizationInsightsPage() {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'AI is busy, try again');
+        throw new Error(data.error || 'AI is busy, please try again.');
       }
 
       setCachedAdvice({
         advice: data.summary,
         generated_at: new Date().toISOString(),
       });
-
-      if (data.notice) {
-        setGenError(data.notice);
-      }
+      showToast('success', 'Gemini planning advice synthesized successfully');
     } catch (err: any) {
       console.error('Error generating organization advice:', err);
-      setGenError(err?.message || 'AI is busy, try again');
+      showToast('error', err?.message || 'Failed to generate advice');
     } finally {
       setGenerating(false);
     }
@@ -363,249 +359,264 @@ export default function OrganizationInsightsPage() {
   const selectedOrg = myOrganizations.find((o) => o.id === selectedOrgId);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      {/* Back Navigation & Refresh */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/organizer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
-        </Link>
+    <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 space-y-6">
+      {/* Top Header & Org Selector */}
+      <PageHeader
+        title={selectedOrg ? `${selectedOrg.name} Analytics` : 'Organization Analytics'}
+        description="Cumulative turnout, overbooking benchmarks, and Gemini AI planning advice."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/organizer">
+              <Button variant="secondary" size="sm">
+                <ArrowLeft className="h-4 w-4" /> Host Dashboard
+              </Button>
+            </Link>
+            {selectedOrgId && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => loadOrgData(selectedOrgId)}
+                aria-label="Refresh data"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        }
+      />
 
-        {selectedOrgId && (
-          <button
-            onClick={() => loadOrgData(selectedOrgId)}
-            className="rounded border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
-            title="Refresh analytics"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Hero Header & Organization Selector */}
-      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
-              <TrendingUp className="h-3.5 w-3.5 text-[#A4161A]" />
-              Organization Analytics &amp; Planning
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mt-1">
-              {selectedOrg ? `${selectedOrg.name} Analytics` : 'Organization Analytics'}
-            </h1>
-            <p className="text-xs text-neutral-500">
-              Attendance rates, venue efficiency, and Gemini AI planning advice.
-            </p>
+      {/* Organization Switcher Bar */}
+      {myOrganizations.length > 0 && (
+        <Card className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-neutral-800">
+            <Building2 className="h-4 w-4 text-[#A4161A]" />
+            <span>Select Active Organization:</span>
           </div>
 
-          {/* Organization Selector */}
-          {myOrganizations.length > 0 && (
-            <div className="sm:w-72">
-              <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
-                Select Organization
-              </label>
-              <select
-                value={selectedOrgId}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
-                className="w-full rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-900 focus:border-[#A4161A] focus:outline-none cursor-pointer"
-              >
-                {myOrganizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name} ({org.type === 'club' ? 'Club' : 'Department'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
+          <div className="sm:w-80">
+            <select
+              value={selectedOrgId}
+              onChange={(e) => setSelectedOrgId(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-900 focus:border-[#A4161A] focus:outline-none cursor-pointer"
+            >
+              {myOrganizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name} ({org.type === 'club' ? 'Club' : 'Department'})
+                </option>
+              ))}
+            </select>
+          </div>
+        </Card>
+      )}
 
       {loading ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-20 animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
-            ))}
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       ) : myOrganizations.length === 0 ? (
-        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs space-y-3">
-          <ShieldAlert className="mx-auto h-10 w-10 text-neutral-300" />
-          <h3 className="text-base font-semibold text-neutral-900">
-            No Organization Memberships Found
-          </h3>
-          <p className="text-xs text-neutral-500 max-w-md mx-auto">
-            You are not currently enrolled in any student clubs or mapped academic departments. Join a club or request Student Welfare mapping to access organization insights.
-          </p>
-        </div>
-      ) : errorMsg ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-xs text-[#991B1B] flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-[#991B1B] shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
+        <EmptyState
+          icon={<ShieldAlert className="h-6 w-6 text-neutral-400" />}
+          title="No organization memberships found"
+          description="You are not currently enrolled in any student clubs or mapped academic departments. Join a club to access cumulative insights."
+        />
       ) : loadingOrgData ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-20 animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
-            ))}
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       ) : stats && stats.totalEvents === 0 ? (
-        <div className="rounded-md border border-neutral-200 bg-white p-12 text-center shadow-xs">
-          <Calendar className="mx-auto h-10 w-10 text-neutral-300" />
-          <h3 className="mt-3 text-base font-semibold text-neutral-900">
-            No past events for {selectedOrg?.name} yet
-          </h3>
-          <p className="mt-1 text-xs text-neutral-500">
-            Host and complete campus events under this organization to generate cumulative analytics.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Calendar className="h-6 w-6 text-neutral-400" />}
+          title={`No past events for ${selectedOrg?.name || 'organization'}`}
+          description="Host and complete campus events under this organization to build cumulative turnout and rating metrics."
+        />
       ) : (
         stats && (
           <>
-            {/* Cumulative Metrics Grid */}
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Cumulative Historical Performance (SQL Ground-Truth)
-                </h2>
-                <span className="text-xs text-neutral-400 font-mono">
-                  {stats.totalEvents} Past Approved Events
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
-                  <div className="flex items-center justify-between text-neutral-500 mb-1">
-                    <span className="text-xs font-medium">Registrations</span>
-                    <Users className="h-3.5 w-3.5 text-neutral-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-neutral-900">
-                    {stats.totalRegistered}
-                  </div>
-                  <div className="text-[11px] text-neutral-400">Total passes issued</div>
+            {/* STAT CARDS */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <Card className="p-4 sm:p-5">
+                <div className="flex items-center justify-between text-neutral-500 mb-1">
+                  <span className="text-xs font-medium">Total Passes</span>
+                  <Users className="h-4 w-4 text-neutral-400" />
                 </div>
-
-                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
-                  <div className="flex items-center justify-between text-neutral-500 mb-1">
-                    <span className="text-xs font-medium">Turnout</span>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-emerald-700">
-                    {stats.totalAttended}
-                  </div>
-                  <div className="text-[11px] text-neutral-400">
-                    {stats.totalRegistered > 0
-                      ? `${Math.round((stats.totalAttended / stats.totalRegistered) * 100)}% turnout rate`
-                      : 'N/A'}
-                  </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-neutral-900">
+                  {stats.totalRegistered}
                 </div>
+                <div className="text-[11px] text-neutral-500 mt-1">Across {stats.totalEvents} past events</div>
+              </Card>
 
-                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
-                  <div className="flex items-center justify-between text-neutral-500 mb-1">
-                    <span className="text-xs font-medium">No-Show Rate</span>
-                    <UserX className="h-3.5 w-3.5 text-[#991B1B]" />
-                  </div>
-                  <div className="text-2xl font-bold text-[#991B1B]">
-                    {stats.overallNoShowRate}%
-                  </div>
-                  <div className="text-[11px] text-neutral-400">
-                    {stats.totalRegistered - stats.totalAttended} absentees
-                  </div>
+              <Card className="p-4 sm:p-5 border-emerald-200 bg-emerald-50/20">
+                <div className="flex items-center justify-between text-emerald-800 mb-1">
+                  <span className="text-xs font-medium">Turnout Count</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-emerald-800">
+                  {stats.totalAttended}
+                </div>
+                <div className="text-[11px] text-emerald-700 mt-1">
+                  {stats.totalRegistered > 0
+                    ? `${Math.round((stats.totalAttended / stats.totalRegistered) * 100)}% overall turnout`
+                    : '—'}
+                </div>
+              </Card>
 
-                <div className="rounded-md border border-neutral-200 bg-white p-4 shadow-xs">
-                  <div className="flex items-center justify-between text-neutral-500 mb-1">
-                    <span className="text-xs font-medium">Avg Review</span>
-                    <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-                  </div>
-                  <div className="text-2xl font-bold text-neutral-900">
-                    {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : 'N/A'}
-                  </div>
-                  <div className="text-[11px] text-neutral-400">Out of 5.0</div>
+              <Card className="p-4 sm:p-5 border-red-200 bg-red-50/20">
+                <div className="flex items-center justify-between text-[#991B1B] mb-1">
+                  <span className="text-xs font-medium">No-Show Rate</span>
+                  <UserX className="h-4 w-4 text-[#991B1B]" />
                 </div>
-              </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#991B1B]">
+                  {stats.overallNoShowRate}%
+                </div>
+                <div className="text-[11px] text-red-700 mt-1">
+                  {stats.totalRegistered - stats.totalAttended} total absentees
+                </div>
+              </Card>
+
+              <Card className="p-4 sm:p-5 border-amber-200 bg-amber-50/20">
+                <div className="flex items-center justify-between text-amber-800 mb-1">
+                  <span className="text-xs font-medium">Average Rating</span>
+                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-amber-900">
+                  {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '—'}
+                </div>
+                <div className="text-[11px] text-amber-800 mt-1">Scale of 1.0 to 5.0</div>
+              </Card>
             </div>
 
-            {/* AI Strategic Planning Advice (Gemini) */}
-            <div className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 p-5 bg-neutral-50">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded bg-[#A4161A] text-white">
-                      <Sparkles className="h-3.5 w-3.5" />
-                    </div>
-                    <h3 className="text-base font-bold text-neutral-900">
-                      Gemini Planning &amp; Overbooking Advice
-                    </h3>
-                  </div>
-                  <p className="text-xs text-neutral-500 mt-0.5">
-                    Calculates overbooking buffers from your {stats.overallNoShowRate}% historical no-show rate
-                  </p>
+            {/* CHARTS: TURNOUT BY TIME & TURNOUT BY HALL */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-[#A4161A]" /> Turnout by Time Slot
+                  </h2>
                 </div>
 
-                <button
+                <div className="space-y-3 pt-1">
+                  {stats.bestTimeSlots.map((slot, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-neutral-700 font-medium">{slot.slot}</span>
+                        <span className="font-bold text-neutral-900 font-mono">{slot.rate}%</span>
+                      </div>
+                      <div className="h-2.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                        <div
+                          className="h-full bg-[#A4161A] rounded-full transition-all duration-500"
+                          style={{ width: `${slot.rate}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <Card className="p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-emerald-700" /> Turnout by Venue
+                  </h2>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {stats.topHalls.map((hall, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-neutral-700 font-medium">
+                          {hall.name} <span className="text-neutral-400 font-normal">({hall.count} events)</span>
+                        </span>
+                        <span className="font-bold text-emerald-800 font-mono">{hall.rate}%</span>
+                      </div>
+                      <div className="h-2.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                          style={{ width: `${hall.rate}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+
+            {/* AI STRATEGIC PLANNING ADVICE (GEMINI) */}
+            <Card className="p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#A4161A] text-white">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <h2 className="text-base font-bold text-neutral-900">
+                      Gemini Planning &amp; Overbooking Advice
+                    </h2>
+                  </div>
+                  {cachedAdvice ? (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 pt-0.5">
+                      <span>Calculated from {stats.overallNoShowRate}% historical no-show rate</span>
+                      <span>•</span>
+                      <span className="font-mono text-neutral-500">
+                        Generated at {new Date(cachedAdvice.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })},{' '}
+                        {new Date(cachedAdvice.generated_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-neutral-500">
+                      Suggests capacity buffers and optimal scheduling based on {stats.overallNoShowRate}% average no-show rate.
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={handleGenerateAdvice}
                   disabled={generating}
-                  className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] disabled:opacity-50 transition-colors cursor-pointer"
                 >
                   {generating ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Analyzing...
+                      <Loader2 className="h-4 w-4 animate-spin" /> Synthesizing...
                     </>
                   ) : cachedAdvice ? (
                     <>
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      Regenerate Advice
+                      <RefreshCw className="h-4 w-4" /> Regenerate Advice
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Generate Advice
+                      <Sparkles className="h-4 w-4" /> Generate Advice
                     </>
                   )}
-                </button>
+                </Button>
               </div>
 
-              {genError && (
-                <div className="m-4 rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
-                  <div>
-                    <span className="font-semibold">Notice: </span>
-                    <span>{genError}</span>
-                  </div>
-                </div>
-              )}
-
               {!cachedAdvice && !generating && (
-                <div className="p-8 text-center space-y-2">
-                  <Lightbulb className="mx-auto h-8 w-8 text-neutral-300" />
-                  <h4 className="text-sm font-semibold text-neutral-900">
-                    No Planning Advice Generated Yet
-                  </h4>
-                  <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                    Click &ldquo;Generate Advice&rdquo; to have Gemini evaluate attendance patterns and suggest capacity buffers for {selectedOrg?.name}.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={<Lightbulb className="h-6 w-6 text-neutral-400" />}
+                  title="No Planning Advice Generated Yet"
+                  description={`Click 'Generate Advice' to have Gemini evaluate attendance patterns and suggest capacity buffers for ${selectedOrg?.name}.`}
+                />
               )}
 
               {cachedAdvice && (
-                <div className="p-5 space-y-4">
-                  <div className="rounded border border-neutral-200 bg-neutral-50 p-3.5 text-xs text-neutral-800 space-y-1">
-                    <div className="font-semibold text-neutral-900 text-xs">
-                      Executive Summary
-                    </div>
-                    <p className="leading-relaxed">{cachedAdvice.advice.executive_summary}</p>
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-1 text-xs">
+                    <div className="font-bold text-neutral-900">Executive Summary</div>
+                    <p className="text-neutral-700 leading-relaxed">
+                      {cachedAdvice.advice.executive_summary}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="rounded border border-neutral-200 bg-white p-3.5 space-y-1.5">
-                      <div className="text-xs font-semibold text-neutral-900 flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-[#A4161A]" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-2">
+                      <div className="text-xs font-bold text-neutral-900 flex items-center gap-1.5 uppercase tracking-wide">
+                        <Users className="h-4 w-4 text-[#A4161A]" />
                         Overbooking Recommendation
                       </div>
                       <p className="text-xs text-neutral-700 leading-relaxed">
@@ -613,9 +624,9 @@ export default function OrganizationInsightsPage() {
                       </p>
                     </div>
 
-                    <div className="rounded border border-neutral-200 bg-white p-3.5 space-y-1.5">
-                      <div className="text-xs font-semibold text-neutral-900 flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5 text-[#A4161A]" />
+                    <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-2">
+                      <div className="text-xs font-bold text-neutral-900 flex items-center gap-1.5 uppercase tracking-wide">
+                        <Building2 className="h-4 w-4 text-[#A4161A]" />
                         Scheduling &amp; Venues
                       </div>
                       <p className="text-xs text-neutral-700 leading-relaxed">
@@ -625,164 +636,86 @@ export default function OrganizationInsightsPage() {
                   </div>
 
                   {cachedAdvice.advice.actionable_improvements?.length > 0 && (
-                    <div className="rounded border border-neutral-200 bg-neutral-50 p-3.5 space-y-2">
-                      <div className="text-xs font-semibold text-neutral-900 flex items-center gap-1.5">
-                        <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/30 p-4 space-y-2">
+                      <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5 uppercase tracking-wide">
+                        <Lightbulb className="h-4 w-4 text-amber-600" />
                         Operational Checklist
                       </div>
-                      <ul className="space-y-1 text-xs text-neutral-700">
+                      <ul className="space-y-1.5 text-xs text-neutral-800">
                         {cachedAdvice.advice.actionable_improvements.map((item, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="mt-1 h-1 w-1 rounded-full bg-neutral-600 shrink-0" />
-                            <span>{item}</span>
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-600 shrink-0" />
+                            <span className="leading-relaxed">{item}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
-
-                  <div className="text-[11px] text-neutral-400 text-right font-mono border-t border-neutral-100 pt-2">
-                    Generated on {new Date(cachedAdvice.generated_at).toLocaleString()}
-                  </div>
                 </div>
               )}
-            </div>
+            </Card>
 
-            {/* Timing and Venue Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Best Time Slots */}
-              <div className="rounded-md border border-neutral-200 bg-white p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-[#A4161A]" />
-                  <h3 className="text-sm font-bold text-neutral-900">
-                    Turnout by Time Slot
-                  </h3>
-                </div>
-
-                <div className="space-y-2.5">
-                  {stats.bestTimeSlots.map((slot, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-neutral-800">{slot.slot}</span>
-                        <span className="font-semibold text-neutral-900">
-                          {slot.rate}%
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full rounded bg-neutral-100 overflow-hidden">
-                        <div
-                          className="h-full bg-[#A4161A] rounded"
-                          style={{ width: `${slot.rate}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Hall Popularity & Turnout */}
-              <div className="rounded-md border border-neutral-200 bg-white p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <Building2 className="h-4 w-4 text-emerald-700" />
-                  <h3 className="text-sm font-bold text-neutral-900">
-                    Turnout by Venue
-                  </h3>
-                </div>
-
-                <div className="space-y-2.5">
-                  {stats.topHalls.map((hall, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-neutral-800">
-                          {hall.name} <span className="text-neutral-400">({hall.count} events)</span>
-                        </span>
-                        <span className="font-semibold text-emerald-800">
-                          {hall.rate}%
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full rounded bg-neutral-100 overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-600 rounded"
-                          style={{ width: `${hall.rate}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Past Events Breakdown Table */}
-            <div className="space-y-3">
-              <h3 className="text-base font-bold text-neutral-900">
+            {/* PAST EVENTS TABLE */}
+            <Card className="p-6 space-y-4">
+              <h2 className="text-base font-bold text-neutral-900">
                 Past Events Performance Breakdown
-              </h3>
+              </h2>
 
-              <div className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="border-b border-neutral-200 bg-neutral-50 text-neutral-600">
-                      <tr>
-                        <th className="px-4 py-2.5 font-semibold">Event Title</th>
-                        <th className="px-4 py-2.5 font-semibold">Venue</th>
-                        <th className="px-4 py-2.5 font-semibold text-center">Registered</th>
-                        <th className="px-4 py-2.5 font-semibold text-center">Attended</th>
-                        <th className="px-4 py-2.5 font-semibold text-center">No-Show %</th>
-                        <th className="px-4 py-2.5 font-semibold text-center">Avg Rating</th>
-                        <th className="px-4 py-2.5 font-semibold text-right">Actions</th>
+              <DataTable>
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-neutral-200 bg-neutral-50 text-neutral-600 font-semibold">
+                    <tr>
+                      <th className="px-4 py-3">Event</th>
+                      <th className="px-4 py-3">Venue</th>
+                      <th className="px-4 py-3 text-center">Registered</th>
+                      <th className="px-4 py-3 text-center">Attended</th>
+                      <th className="px-4 py-3 text-center">No-Show %</th>
+                      <th className="px-4 py-3 text-center">Avg Rating</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 bg-white">
+                    {eventRows.map((row) => (
+                      <tr key={row.id} className="hover:bg-neutral-50/60 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-neutral-900">{row.title}</div>
+                          <div className="text-[11px] text-neutral-500 font-mono">
+                            {formatSimpleDate(row.start_time)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-neutral-600">{row.hall_name}</td>
+                        <td className="px-4 py-3 text-center font-mono text-neutral-800">
+                          {row.registered}
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono font-bold text-emerald-700">
+                          {row.attended}
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono font-bold text-[#991B1B]">
+                          {row.noShowRate}%
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {row.avgRating > 0 ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-amber-700">
+                              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                              {row.avgRating.toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-400 font-mono">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Link href={`/organizer/events/${row.id}/insights`}>
+                            <Button variant="secondary" size="sm">
+                              Insights <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-100">
-                      {eventRows.map((row) => (
-                        <tr
-                          key={row.id}
-                          className="hover:bg-neutral-50 transition-colors"
-                        >
-                          <td className="px-4 py-2.5 font-medium text-neutral-900">
-                            {row.title}
-                            <div className="text-[11px] text-neutral-400 font-normal">
-                              {new Date(row.start_time).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </div>
-                          </td>
-                          <td className="px-4 py-2.5 text-neutral-600">
-                            {row.hall_name}
-                          </td>
-                          <td className="px-4 py-2.5 text-center font-mono text-neutral-800">
-                            {row.registered}
-                          </td>
-                          <td className="px-4 py-2.5 text-center font-mono font-semibold text-emerald-700">
-                            {row.attended}
-                          </td>
-                          <td className="px-4 py-2.5 text-center font-mono font-semibold text-[#991B1B]">
-                            {row.noShowRate}%
-                          </td>
-                          <td className="px-4 py-2.5 text-center">
-                            {row.avgRating > 0 ? (
-                              <span className="inline-flex items-center gap-1 font-semibold text-amber-700">
-                                <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-                                {row.avgRating.toFixed(1)}
-                              </span>
-                            ) : (
-                              <span className="text-neutral-400 font-mono">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-right">
-                            <Link
-                              href={`/organizer/events/${row.id}/insights`}
-                              className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:text-[#A4161A] transition-colors"
-                            >
-                              Insights <ChevronRight className="h-3 w-3" />
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </DataTable>
+            </Card>
           </>
         )
       )}

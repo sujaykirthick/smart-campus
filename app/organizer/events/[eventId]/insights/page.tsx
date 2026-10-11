@@ -6,6 +6,16 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { CampusEvent, EventAISummary, Review } from '@/lib/types';
 import {
+  PageHeader,
+  Card,
+  StatusBadge,
+  Button,
+  EmptyState,
+  SkeletonCard,
+  useToast,
+} from '@/components/ui';
+import { formatEventDate, formatHall } from '@/lib/format';
+import {
   Sparkles,
   ArrowLeft,
   Users,
@@ -23,7 +33,8 @@ import {
   Lightbulb,
   Wrench,
   Loader2,
-  ShieldAlert,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react';
 
 interface EventStats {
@@ -39,6 +50,7 @@ export default function EventInsightsPage() {
   const params = useParams();
   const eventId = params.eventId as string;
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [event, setEvent] = useState<CampusEvent | null>(null);
   const [stats, setStats] = useState<EventStats | null>(null);
@@ -46,15 +58,12 @@ export default function EventInsightsPage() {
   const [cachedSummary, setCachedSummary] = useState<EventAISummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [genError, setGenError] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
   const loadData = useCallback(async () => {
     if (!eventId) return;
     setLoading(true);
-    setErrorMsg(null);
 
     try {
       const {
@@ -77,7 +86,7 @@ export default function EventInsightsPage() {
         throw new Error(evErr?.message || 'Event not found.');
       }
 
-      // Authorization check: owner, organization member, or approvers
+      // Authorization check
       if (ev.organizer_email !== user.email) {
         let isAuthorized = false;
         const { data: profile } = await supabase
@@ -101,7 +110,7 @@ export default function EventInsightsPage() {
         }
 
         if (!isAuthorized) {
-          throw new Error('Unauthorized. Only the event organizer, organization members, or approval authorities can access event insights.');
+          throw new Error('Unauthorized to view event insights.');
         }
       }
 
@@ -122,412 +131,423 @@ export default function EventInsightsPage() {
           .maybeSingle(),
       ]);
 
-      if (regsRes.error) throw regsRes.error;
-      if (reviewsRes.error) throw reviewsRes.error;
-
       const regs = regsRes.data || [];
-      const confirmed = regs.filter((r) => r.status === 'confirmed').length;
-      const attended = regs.filter((r) => r.checked_in_at !== null).length;
-      const waitlist = regs.filter((r) => r.status === 'waitlisted').length;
-      const capacity = ev.halls?.capacity || 0;
-      const noShowRate =
-        confirmed > 0 ? Math.round(((confirmed - attended) / confirmed) * 100) : 0;
+      const revs = (reviewsRes.data as unknown as Review[]) || [];
+      setReviews(revs);
+      setCachedSummary((summaryRes.data as unknown as EventAISummary) || null);
 
-      const revs = (reviewsRes.data as Review[]) || [];
-      const avgRating =
-        revs.length > 0
-          ? revs.reduce((acc, curr) => acc + curr.rating, 0) / revs.length
-          : 0;
+      // 3. Compute deterministic stats
+      const confirmed = regs.filter((r) => r.status === 'confirmed');
+      const waitlist = regs.filter((r) => r.status === 'waitlisted');
+      const attended = confirmed.filter((r) => r.checked_in_at !== null).length;
+      const registered = confirmed.length;
+      const noShowCount = registered - attended;
+      const noShowRate = registered > 0 ? Math.round((noShowCount / registered) * 100) : 0;
+
+      const totalRating = revs.reduce((acc, r) => acc + (r.rating || 0), 0);
+      const averageRating = revs.length > 0 ? totalRating / revs.length : 0;
+      const capacity = ev.halls?.capacity || 0;
 
       setStats({
-        registered: confirmed,
+        registered,
         attended,
-        noShowRate: Math.max(0, noShowRate),
-        averageRating: avgRating,
-        waitlistCount: waitlist,
+        noShowRate,
+        averageRating,
+        waitlistCount: waitlist.length,
         capacity,
       });
-
-      setReviews(revs);
-
-      if (summaryRes.data) {
-        setCachedSummary(summaryRes.data as EventAISummary);
-      }
     } catch (err: any) {
-      console.error('Error loading event insights:', err);
-      setErrorMsg(err?.message || 'Failed to load insights.');
+      console.error('Error loading insights:', err);
+      showToast('error', err?.message || 'Failed to load insights.');
     } finally {
       setLoading(false);
     }
-  }, [eventId, supabase, router]);
+  }, [eventId, supabase, router, showToast]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  // Handle Generate / Regenerate AI Summary
   const handleGenerateSummary = async () => {
+    if (!eventId) return;
     setGenerating(true);
-    setGenError(null);
 
     try {
-      const res = await fetch(`/api/events/${eventId}/generate-summary`, {
+      const res = await fetch(`/api/events/${eventId}/summarize`, {
         method: 'POST',
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'AI is busy, try again');
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to generate AI summary.');
       }
 
-      setCachedSummary({
-        event_id: eventId,
-        summary: data.summary,
-        review_count: data.review_count,
-        generated_at: new Date().toISOString(),
-      });
-
-      if (data.notice) {
-        setGenError(data.notice);
-      }
+      setCachedSummary(json.data);
+      showToast('success', 'Gemini AI synthesis updated successfully');
     } catch (err: any) {
-      console.error('Error in generating summary:', err);
-      setGenError(err?.message || 'AI is busy, try again');
+      console.error('Error synthesizing reviews:', err);
+      showToast('error', err?.message || 'Synthesis failed');
     } finally {
       setGenerating(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
-        <div className="h-20 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (errorMsg || !event || !stats) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-12 text-center space-y-3">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-red-50 text-[#991B1B] border border-red-200">
-          <ShieldAlert className="h-6 w-6" />
-        </div>
-        <h2 className="text-lg font-bold text-neutral-900">Access Restricted</h2>
-        <p className="text-xs text-neutral-500">{errorMsg || 'Unable to display insights.'}</p>
-        <Link
-          href="/organizer"
-          className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Return to Dashboard
-        </Link>
-      </div>
-    );
-  }
-
   const reviewCount = reviews.length;
   const canGenerateAI = reviewCount >= 5;
 
+  // Calculate rating breakdown distribution (1 to 5 stars)
+  const ratingCounts = useMemo(() => {
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach((r) => {
+      const star = Math.min(5, Math.max(1, Math.round(r.rating || 0))) as 1 | 2 | 3 | 4 | 5;
+      counts[star] = (counts[star] || 0) + 1;
+    });
+    return counts;
+  }, [reviews]);
+
+  if (loading || !event || !stats) {
+    return (
+      <div className="mx-auto max-w-[1200px] px-4 py-16 flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="h-6 w-6 animate-spin text-[#A4161A]" />
+        <div className="text-xs text-neutral-500 font-medium">Computing event intelligence...</div>
+      </div>
+    );
+  }
+
+  const turnoutRate = stats.registered > 0 ? Math.round((stats.attended / stats.registered) * 100) : 0;
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      {/* Back navigation */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/organizer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600 hover:text-neutral-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Organizer Portal
-        </Link>
+    <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 space-y-6">
+      {/* Top Header */}
+      <PageHeader
+        title={event.title}
+        badge={<StatusBadge status="approved" label="Insights & Analytics" />}
+        description={`${formatHall(event.halls?.name, stats.capacity)} • ${formatEventDate(event.start_time, event.end_time)}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href={`/organizer/events/${eventId}`}>
+              <Button variant="secondary" size="sm">
+                <ArrowLeft className="h-4 w-4" /> Host Dashboard
+              </Button>
+            </Link>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={loadData}
+              aria-label="Refresh analytics"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        }
+      />
 
-        <button
-          onClick={loadData}
-          className="rounded border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
-          title="Refresh stats"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
+      {/* STAT CARDS */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-medium">Registered</span>
+            <Users className="h-4 w-4 text-neutral-400" />
+          </div>
+          <div className="text-2xl font-extrabold text-neutral-900">{stats.registered}</div>
+          <div className="text-[11px] text-neutral-500">Confirmed passes</div>
+        </Card>
+
+        <Card className="p-4 border-emerald-200 bg-emerald-50/20">
+          <div className="flex items-center justify-between text-emerald-800 mb-1">
+            <span className="text-xs font-medium">Attended</span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-emerald-800">{stats.attended}</div>
+          <div className="text-[11px] text-emerald-700">{turnoutRate}% turnout</div>
+        </Card>
+
+        <Card className="p-4 border-red-200 bg-red-50/20">
+          <div className="flex items-center justify-between text-[#991B1B] mb-1">
+            <span className="text-xs font-medium">No-Show</span>
+            <UserX className="h-4 w-4 text-[#991B1B]" />
+          </div>
+          <div className="text-2xl font-extrabold text-[#991B1B]">{stats.noShowRate}%</div>
+          <div className="text-[11px] text-red-700">{stats.registered - stats.attended} absent</div>
+        </Card>
+
+        <Card className="p-4 border-amber-200 bg-amber-50/20">
+          <div className="flex items-center justify-between text-amber-800 mb-1">
+            <span className="text-xs font-medium">Avg Rating</span>
+            <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+          </div>
+          <div className="text-2xl font-extrabold text-amber-900">
+            {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '—'}
+          </div>
+          <div className="text-[11px] text-amber-800">{reviewCount} reviews</div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-medium">Waitlist</span>
+            <Hourglass className="h-4 w-4 text-amber-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-neutral-900">{stats.waitlistCount}</div>
+          <div className="text-[11px] text-neutral-500">Unfulfilled queue</div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-neutral-500 mb-1">
+            <span className="text-xs font-medium">Capacity Fill</span>
+            <Building2 className="h-4 w-4 text-neutral-400" />
+          </div>
+          <div className="text-2xl font-extrabold text-neutral-900">
+            {stats.capacity > 0 ? `${Math.round((stats.attended / stats.capacity) * 100)}%` : '—'}
+          </div>
+          <div className="text-[11px] text-neutral-500">{stats.attended} / {stats.capacity} seats</div>
+        </Card>
       </div>
 
-      {/* Header Banner */}
-      <div className="rounded-md border border-neutral-200 bg-white p-6 shadow-xs space-y-2">
-        <div className="inline-flex items-center gap-1.5 rounded bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-700">
-          Event Analytics &amp; Intelligence
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
-          {event.title}
-        </h1>
-        <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500 pt-1">
-          <span className="flex items-center gap-1">
-            <Building2 className="h-3.5 w-3.5 text-[#A4161A]" />
-            {event.halls?.name || 'Venue'} (Capacity: {stats.capacity})
-          </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 text-neutral-400" />
-            {new Date(event.start_time).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </span>
-          <span className="flex items-center gap-1 font-mono text-[11px]">
-            <Clock className="h-3.5 w-3.5 text-neutral-400" />
-            {new Date(event.start_time).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-            })}{' '}
-            –{' '}
-            {new Date(event.end_time).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-            })}
-          </span>
-        </div>
-      </div>
-
-      {/* SQL Ground-Truth Stats Grid */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Ground-Truth Metrics (SQL Computed)
-          </h2>
-          <span className="text-xs text-neutral-400 font-mono">Audited</span>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
-            <div className="flex items-center justify-between text-neutral-500 mb-1">
-              <span className="text-xs font-medium">Registered</span>
-              <Users className="h-3.5 w-3.5 text-neutral-400" />
-            </div>
-            <div className="text-xl font-bold text-neutral-900">
-              {stats.registered}
-            </div>
-            <div className="text-[10px] text-neutral-400">Confirmed passes</div>
+      {/* CHARTS SECTION: ATTENDANCE & RATINGS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Attendance Breakdown Chart */}
+        <Card className="p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-[#A4161A]" /> Attendance Breakdown
+            </h2>
+            <span className="text-xs font-semibold text-neutral-600 font-mono">
+              Total {stats.registered} passes
+            </span>
           </div>
 
-          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
-            <div className="flex items-center justify-between text-neutral-500 mb-1">
-              <span className="text-xs font-medium">Attended</span>
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+          <div className="space-y-3 pt-1">
+            {/* Horizontal Bar Visual */}
+            <div className="h-4 w-full rounded-full bg-neutral-100 overflow-hidden flex">
+              <div
+                style={{ width: `${turnoutRate}%` }}
+                className="bg-emerald-600 h-full transition-all duration-500"
+                title={`Attended: ${turnoutRate}%`}
+              />
+              <div
+                style={{ width: `${stats.noShowRate}%` }}
+                className="bg-red-400 h-full transition-all duration-500"
+                title={`No-show: ${stats.noShowRate}%`}
+              />
             </div>
-            <div className="text-xl font-bold text-emerald-700">
-              {stats.attended}
-            </div>
-            <div className="text-[10px] text-neutral-400">Scanned at door</div>
-          </div>
 
-          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
-            <div className="flex items-center justify-between text-neutral-500 mb-1">
-              <span className="text-xs font-medium">No-Show</span>
-              <UserX className="h-3.5 w-3.5 text-[#991B1B]" />
-            </div>
-            <div className="text-xl font-bold text-[#991B1B]">
-              {stats.noShowRate}%
-            </div>
-            <div className="text-[10px] text-neutral-400">
-              {stats.registered - stats.attended} absent
-            </div>
-          </div>
-
-          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
-            <div className="flex items-center justify-between text-neutral-500 mb-1">
-              <span className="text-xs font-medium">Avg Rating</span>
-              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-            </div>
-            <div className="text-xl font-bold text-neutral-900">
-              {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : 'N/A'}
-            </div>
-            <div className="text-[10px] text-neutral-400">{reviewCount} reviews</div>
-          </div>
-
-          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
-            <div className="flex items-center justify-between text-neutral-500 mb-1">
-              <span className="text-xs font-medium">Waitlist</span>
-              <Hourglass className="h-3.5 w-3.5 text-amber-600" />
-            </div>
-            <div className="text-xl font-bold text-neutral-900">
-              {stats.waitlistCount}
-            </div>
-            <div className="text-[10px] text-neutral-400">Waitlisted count</div>
-          </div>
-
-          <div className="rounded-md border border-neutral-200 bg-white p-3 shadow-xs">
-            <div className="flex items-center justify-between text-neutral-500 mb-1">
-              <span className="text-xs font-medium">Capacity</span>
-              <Building2 className="h-3.5 w-3.5 text-neutral-400" />
-            </div>
-            <div className="text-xl font-bold text-neutral-900">
-              {stats.capacity > 0
-                ? `${Math.round((stats.attended / stats.capacity) * 100)}%`
-                : 'N/A'}
-            </div>
-            <div className="text-[10px] text-neutral-400">{stats.attended} / {stats.capacity}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Summary Section with Gemini */}
-      <div className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 p-5 bg-neutral-50">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded bg-[#A4161A] text-white">
-                <Sparkles className="h-3.5 w-3.5" />
+            {/* Attendance Legend & Values */}
+            <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+                <div className="flex items-center gap-1.5 font-medium text-emerald-800">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" /> Attended & Verified
+                </div>
+                <div className="text-lg font-bold text-emerald-900 mt-1">
+                  {stats.attended}{' '}
+                  <span className="text-xs font-normal text-emerald-700">({turnoutRate}%)</span>
+                </div>
               </div>
-              <h3 className="text-base font-bold text-neutral-900">
-                Gemini AI Qualitative Synthesis
-              </h3>
+
+              <div className="rounded-lg border border-red-200 bg-red-50/50 p-3">
+                <div className="flex items-center gap-1.5 font-medium text-[#991B1B]">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-400" /> Absent / No-Show
+                </div>
+                <div className="text-lg font-bold text-[#991B1B] mt-1">
+                  {stats.registered - stats.attended}{' '}
+                  <span className="text-xs font-normal text-red-700">({stats.noShowRate}%)</span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              {cachedSummary
-                ? `Synthesized based on ${cachedSummary.review_count} attendee reviews`
-                : 'Generates recurring themes, praise, friction points, and recommendations'}
-            </p>
+          </div>
+        </Card>
+
+        {/* Ratings Distribution Chart */}
+        <Card className="p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <Star className="h-4 w-4 fill-[#A4161A] text-[#A4161A]" /> Ratings Distribution
+            </h2>
+            <span className="text-xs font-semibold text-neutral-600 font-mono">
+              {reviewCount} reviews
+            </span>
           </div>
 
-          <button
+          <div className="space-y-2 pt-1">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = ratingCounts[star as 1 | 2 | 3 | 4 | 5] || 0;
+              const pct = reviewCount > 0 ? Math.round((count / reviewCount) * 100) : 0;
+
+              return (
+                <div key={star} className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-1 w-12 text-neutral-700 font-semibold shrink-0">
+                    <span>{star}</span>
+                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                  </div>
+                  <div className="flex-1 h-3 rounded-full bg-neutral-100 overflow-hidden">
+                    <div
+                      style={{ width: `${pct}%` }}
+                      className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                    />
+                  </div>
+                  <div className="w-12 text-right font-mono text-neutral-500 text-[11px] shrink-0">
+                    {count} ({pct}%)
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
+
+      {/* AI SUMMARY CARD WITH GEMINI */}
+      <Card className="p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#A4161A] text-white">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <h2 className="text-base font-bold text-neutral-900">
+                Gemini AI Qualitative Synthesis
+              </h2>
+            </div>
+            {cachedSummary ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 pt-0.5">
+                <span className="font-semibold text-neutral-800">
+                  Based on {cachedSummary.review_count} reviews
+                </span>
+                <span>•</span>
+                <span className="font-mono text-neutral-500">
+                  Generated at {new Date(cachedSummary.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })},{' '}
+                  {new Date(cachedSummary.generated_at).toLocaleDateString()}
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-neutral-500">
+                Identifies recurring themes, highlights what worked, and flags areas to improve.
+              </p>
+            )}
+          </div>
+
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleGenerateSummary}
             disabled={!canGenerateAI || generating}
-            className="inline-flex items-center gap-1.5 rounded bg-[#A4161A] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#851215] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             {generating ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Analyzing...
+                <Loader2 className="h-4 w-4 animate-spin" /> Synthesizing...
               </>
             ) : cachedSummary ? (
               <>
-                <RefreshCw className="h-3.5 w-3.5" />
-                Regenerate Summary
+                <RefreshCw className="h-4 w-4" /> Regenerate Summary
               </>
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5" />
-                Generate Summary
+                <Sparkles className="h-4 w-4" /> Generate Summary
               </>
             )}
-          </button>
+          </Button>
         </div>
-
-        {/* Generate Error Notice */}
-        {genError && (
-          <div className="m-4 rounded border border-red-200 bg-red-50 p-3 text-xs text-[#991B1B] flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 text-[#991B1B] mt-0.5" />
-            <div>
-              <span className="font-semibold">Notice: </span>
-              <span>{genError}</span>
-            </div>
-          </div>
-        )}
 
         {/* Not enough reviews state */}
         {!canGenerateAI && !cachedSummary && (
-          <div className="p-10 text-center space-y-2">
-            <MessageSquare className="mx-auto h-8 w-8 text-neutral-300" />
-            <h4 className="text-sm font-semibold text-neutral-900">
-              Awaiting More Student Feedback
-            </h4>
-            <p className="max-w-md mx-auto text-xs text-neutral-500">
-              AI summary generation requires a minimum of <span className="font-semibold text-neutral-800">5 student reviews</span>. Current count: <span className="font-semibold text-[#A4161A]">{reviewCount} / 5</span>.
-            </p>
-          </div>
+          <EmptyState
+            icon={<MessageSquare className="h-6 w-6 text-neutral-400" />}
+            title="Awaiting More Student Feedback"
+            description={`AI summary generation requires a minimum of 5 student reviews. Current reviews: ${reviewCount} / 5.`}
+          />
         )}
 
         {/* Cached / Generated Summary Display */}
         {cachedSummary && (
-          <div className="p-5 space-y-4">
+          <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Themes */}
-              <div className="rounded border border-neutral-200 bg-neutral-50 p-4 space-y-2">
-                <div className="flex items-center gap-1.5 text-neutral-900 font-semibold text-xs">
-                  <Sparkles className="h-3.5 w-3.5 text-[#A4161A]" />
-                  Discussion Themes
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-2.5">
+                <div className="flex items-center gap-2 text-neutral-900 font-bold text-xs uppercase tracking-wide">
+                  <Sparkles className="h-4 w-4 text-[#A4161A]" />
+                  Key Discussion Themes
                 </div>
-                <ul className="space-y-1.5 text-xs text-neutral-700">
-                  {cachedSummary.summary.themes.map((t, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1 w-1 rounded-full bg-[#A4161A] shrink-0" />
-                      <span>{t}</span>
-                    </li>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {cachedSummary.summary.themes.map((theme, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-md bg-white border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-800 shadow-xs"
+                    >
+                      {theme}
+                    </span>
                   ))}
-                </ul>
+                </div>
               </div>
 
               {/* What Worked */}
-              <div className="rounded border border-emerald-200 bg-emerald-50/40 p-4 space-y-2">
-                <div className="flex items-center gap-1.5 text-emerald-900 font-semibold text-xs">
-                  <ThumbsUp className="h-3.5 w-3.5 text-emerald-700" />
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-4 space-y-2.5">
+                <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs uppercase tracking-wide">
+                  <ThumbsUp className="h-4 w-4 text-emerald-700" />
                   What Worked
                 </div>
-                <ul className="space-y-1.5 text-xs text-neutral-800">
+                <ul className="space-y-2 text-xs text-neutral-800">
                   {cachedSummary.summary.what_worked.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1 w-1 rounded-full bg-emerald-600 shrink-0" />
-                      <span>{item}</span>
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0" />
+                      <span className="leading-relaxed">{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
               {/* What to Improve */}
-              <div className="rounded border border-red-200 bg-red-50/40 p-4 space-y-2">
-                <div className="flex items-center gap-1.5 text-[#991B1B] font-semibold text-xs">
-                  <Wrench className="h-3.5 w-3.5 text-[#991B1B]" />
+              <div className="rounded-xl border border-red-200 bg-red-50/30 p-4 space-y-2.5">
+                <div className="flex items-center gap-2 text-[#991B1B] font-bold text-xs uppercase tracking-wide">
+                  <Wrench className="h-4 w-4 text-[#991B1B]" />
                   Areas to Improve
                 </div>
-                <ul className="space-y-1.5 text-xs text-neutral-800">
+                <ul className="space-y-2 text-xs text-neutral-800">
                   {cachedSummary.summary.what_to_improve.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1 w-1 rounded-full bg-[#991B1B] shrink-0" />
-                      <span>{item}</span>
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#991B1B] shrink-0" />
+                      <span className="leading-relaxed">{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              {/* Actionable Suggestions */}
-              <div className="rounded border border-neutral-200 bg-neutral-50 p-4 space-y-2">
-                <div className="flex items-center gap-1.5 text-neutral-900 font-semibold text-xs">
-                  <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
-                  Actionable Suggestions
+              {/* Suggestions */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50/30 p-4 space-y-2.5">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wide">
+                  <Lightbulb className="h-4 w-4 text-amber-600" />
+                  Actionable Recommendations
                 </div>
-                <ul className="space-y-1.5 text-xs text-neutral-700">
+                <ul className="space-y-2 text-xs text-neutral-800">
                   {cachedSummary.summary.suggestions.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 h-1 w-1 rounded-full bg-amber-600 shrink-0" />
-                      <span>{item}</span>
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-600 shrink-0" />
+                      <span className="leading-relaxed">{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
-
-            <div className="text-[11px] text-neutral-400 text-right font-mono">
-              Generated on {new Date(cachedSummary.generated_at).toLocaleString()}
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Anonymized Student Reviews List */}
-      <div className="space-y-3">
-        <h3 className="text-base font-bold text-neutral-900">
+      {/* STUDENT REVIEWS LIST */}
+      <Card className="p-6 space-y-4">
+        <h2 className="text-base font-bold text-neutral-900">
           Student Feedback ({reviewCount})
-        </h3>
+        </h2>
 
         {reviews.length === 0 ? (
-          <div className="rounded-md border border-neutral-200 bg-white p-6 text-center text-xs text-neutral-500">
-            No reviews submitted yet for this event.
-          </div>
+          <EmptyState
+            icon={<MessageSquare className="h-6 w-6 text-neutral-400" />}
+            title="No reviews submitted yet"
+            description="Reviews submitted by verified attendees will show up here anonymously."
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             {reviews.map((rev) => (
               <div
                 key={rev.id}
-                className="rounded-md border border-neutral-200 bg-white p-4 space-y-2 shadow-xs"
+                className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 space-y-2"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
@@ -555,13 +575,17 @@ export default function EventInsightsPage() {
                 </div>
 
                 <p className="text-xs text-neutral-800 leading-relaxed">
-                  {rev.comment ? `"${rev.comment}"` : <span className="text-neutral-400 italic">(Rating only)</span>}
+                  {rev.comment ? (
+                    `"${rev.comment}"`
+                  ) : (
+                    <span className="text-neutral-400 italic">(Rating only)</span>
+                  )}
                 </p>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
