@@ -1,0 +1,751 @@
+[
+  {
+    "id": "P001",
+    "name": "Ettimadai Railway Station",
+    "category": "navigation_point",
+    "aliases": [
+      "Ettimadai Station",
+      "Railway Station"
+    ],
+    "lat": 10.8984378,
+    "lng": 76.8956619,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.898428, 76.895837) and Copy 2 (10.898438, 76.895662)."
+  },
+  {
+    "id": "P002",
+    "name": "Campus main gate",
+    "category": "navigation_point",
+    "aliases": [
+      "AB2",
+      "AB-2",
+      "Academic Block 2"
+    ],
+    "lat": 10.89932,
+    "lng": 76.900444,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P003",
+    "name": "Academic Block 3",
+    "category": "academic_or_research",
+    "aliases": [
+      "AB3",
+      "AB-3",
+      "Academic Block 3",
+      "Academic Block - 3"
+    ],
+    "lat": 10.9062669,
+    "lng": 76.8981544,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.906472, 76.899405) and Copy 2 (10.906267, 76.898154)."
+  },
+  {
+    "id": "P004",
+    "name": "Academic Block 1",
+    "category": "academic_or_research",
+    "aliases": [
+      "AB1",
+      "AB-1",
+      "Academic Block 1"
+    ],
+    "lat": 10.900283,
+    "lng": 76.9029179,
+    "accuracy": "approximate",
+    "source_notes": "Present only in Copy 2 (frontend/src/data/buildings.json)."
+  },
+  {
+    "id": "P005",
+    "name": "CIR BLOCK",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9048754,
+    "lng": 76.901442,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P007",
+    "name": "Academic Block - 4",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9042304,
+    "lng": 76.9035144,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P008",
+    "name": "Amriteshwari Hall",
+    "category": "sports_or_venue",
+    "aliases": [
+      "Amriteshwari",
+      "Amriteshwari Auditorium"
+    ],
+    "lat": 10.9003558,
+    "lng": 76.9035056,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.900641, 76.903581) and Copy 2 (10.900356, 76.903506)."
+  },
+  {
+    "id": "P009",
+    "name": "Ganga Mess",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9006566,
+    "lng": 76.9036093,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P010",
+    "name": "Sopanam - Main Canteen",
+    "category": "facility",
+    "aliases": [
+      "Sopanam",
+      "Main Canteen"
+    ],
+    "lat": 10.9002674,
+    "lng": 76.9035448,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.900233, 76.903569) and Copy 2 (10.900267, 76.903545)."
+  },
+  {
+    "id": "P011",
+    "name": "Workers quarters",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.8996547,
+    "lng": 76.9038946,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P012",
+    "name": "YB - Yagnavalkya Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.901149,
+    "lng": 76.9046036,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P013",
+    "name": "VMB - Vyasa Maharshi Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9014053,
+    "lng": 76.9050507,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P014",
+    "name": "KB - Kashyapa Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.902415,
+    "lng": 76.9047442,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P015",
+    "name": "Aerospace Hanger",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9030544,
+    "lng": 76.9040812,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.902415, 76.904744) and Copy 2 (10.903054, 76.904081)."
+  },
+  {
+    "id": "P016",
+    "name": "AB1",
+    "category": "academic_or_research",
+    "aliases": [
+      "AB1",
+      "Academic Block 1"
+    ],
+    "lat": 10.9002249,
+    "lng": 76.9029515,
+    "accuracy": "approximate",
+    "source_notes": "Present only in Copy 1 (data/buildings.json)."
+  },
+  {
+    "id": "P017",
+    "name": "Amrita FootBall Ground",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9028303,
+    "lng": 76.9039338,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P018",
+    "name": "Amrita FootBall Ground",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9028905,
+    "lng": 76.9034433,
+    "accuracy": "approximate",
+    "source_notes": "Present only in Copy 1 (data/buildings.json)."
+  },
+  {
+    "id": "P019",
+    "name": "Prasada ASB Canteen",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9044827,
+    "lng": 76.9020066,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P020",
+    "name": "Samudara- AB2 IT CANTEEN",
+    "category": "facility",
+    "aliases": [
+      "Samudara",
+      "IT Canteen"
+    ],
+    "lat": 10.9050161,
+    "lng": 76.8980685,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.904773, 76.897624) and Copy 2 (10.905016, 76.898068)."
+  },
+  {
+    "id": "P021",
+    "name": "Department Of Mathematics",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9047709,
+    "lng": 76.8985364,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P022",
+    "name": "Department of Mass Communication",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9047877,
+    "lng": 76.89853,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P023",
+    "name": "Amritanjali Hall - AB2",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9044417,
+    "lng": 76.8983477,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P024",
+    "name": "Department of Electrical and Electronics Engineering",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9044417,
+    "lng": 76.8983477,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P025",
+    "name": "Amrita Ashram",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9027005,
+    "lng": 76.9011383,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.902250, 76.899868) and Copy 2 (10.902700, 76.901138)."
+  },
+  {
+    "id": "P026",
+    "name": "GB- Gargi Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9025033,
+    "lng": 76.8997776,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P027",
+    "name": "Amrita central library",
+    "category": "campus_location",
+    "aliases": [
+      "Library",
+      "Central Library"
+    ],
+    "lat": 10.9042502,
+    "lng": 76.8992075,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.903513, 76.898192) and Copy 2 (10.904250, 76.899208)."
+  },
+  {
+    "id": "P028",
+    "name": "Kalari Temple",
+    "category": "sports_or_venue",
+    "aliases": [
+      "Temple",
+      "Kalari"
+    ],
+    "lat": 10.9042893,
+    "lng": 76.9012433,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.904401, 76.900356) and Copy 2 (10.904289, 76.901243)."
+  },
+  {
+    "id": "P029",
+    "name": "AB - Aditi Bhavanam - Girls hostel",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9072874,
+    "lng": 76.8988862,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P030",
+    "name": "Amrita Swimming Pool",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9062525,
+    "lng": 76.8987866,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P031",
+    "name": "Anugraha Hall - AB3",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9065239,
+    "lng": 76.8972794,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P032",
+    "name": "Ammachi Labs",
+    "category": "academic_or_research",
+    "aliases": [
+      "Ammachi",
+      "Robotics Lab"
+    ],
+    "lat": 10.9061623,
+    "lng": 76.897193,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.906352, 76.897212) and Copy 2 (10.906162, 76.897193)."
+  },
+  {
+    "id": "P033",
+    "name": "Amrita Centre for Entrepreneurships",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9053208,
+    "lng": 76.9016996,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P034",
+    "name": "Mythreyi Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9007641,
+    "lng": 76.9010473,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P035",
+    "name": "Physical Education & Gym",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9017862,
+    "lng": 76.9019809,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P036",
+    "name": "AOC-Amrita Office of Communication",
+    "category": "academic_or_research",
+    "aliases": [
+      "AOC",
+      "Office of Communication"
+    ],
+    "lat": 10.90226,
+    "lng": 76.902059,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.900410, 76.900300) and Copy 2 (10.902260, 76.902059)."
+  },
+  {
+    "id": "P037",
+    "name": "Ambulance Yard",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9020509,
+    "lng": 76.9016431,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P038",
+    "name": "Pharmacy",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9018904,
+    "lng": 76.9017925,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P039",
+    "name": "Clinic",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9018904,
+    "lng": 76.9017925,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P040",
+    "name": "Departmental Store",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9018361,
+    "lng": 76.9018134,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P041",
+    "name": "Amenity complex",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9018855,
+    "lng": 76.9017886,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P042",
+    "name": "Amrita Kripa Labs (CoE-AMGT)",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9013696,
+    "lng": 76.9023723,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P043",
+    "name": "Public Washroom",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9013696,
+    "lng": 76.9023723,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.901651, 76.902687) and Copy 2 (10.901370, 76.902372)."
+  },
+  {
+    "id": "P044",
+    "name": "Amrita Nagar Post Office",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.8996454,
+    "lng": 76.9005319,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.899591, 76.899665) and Copy 2 (10.899645, 76.900532)."
+  },
+  {
+    "id": "P045",
+    "name": "Dhanlaxmi Bank- Ettimadai",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.8996515,
+    "lng": 76.9001118,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P046",
+    "name": "Amrita Sewage Treatment Plant",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.8996515,
+    "lng": 76.9001118,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P047",
+    "name": "Tennis Court",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.8996509,
+    "lng": 76.9018706,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.899651, 76.900112) and Copy 2 (10.899651, 76.901871)."
+  },
+  {
+    "id": "P048",
+    "name": "Cycle Repair Shop",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9010142,
+    "lng": 76.9019412,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.900786, 76.900275) and Copy 2 (10.901014, 76.901941)."
+  },
+  {
+    "id": "P049",
+    "name": "Guest House",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.901485,
+    "lng": 76.899058,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P050",
+    "name": "Oushadha vanam",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9033841,
+    "lng": 76.9017227,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P051",
+    "name": "Business School Parking Lot",
+    "category": "navigation_point",
+    "aliases": [],
+    "lat": 10.9042733,
+    "lng": 76.9024995,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.904408, 76.902119) and Copy 2 (10.904273, 76.902500)."
+  },
+  {
+    "id": "P052",
+    "name": "Pandal (New Auditorium)",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.90424,
+    "lng": 76.902511,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P053",
+    "name": "Volleyball court",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9016673,
+    "lng": 76.9041978,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P054",
+    "name": "Basketball court",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9016673,
+    "lng": 76.9041978,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P055",
+    "name": "YB Gym Ayusha sadanam",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.9016673,
+    "lng": 76.9041978,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P056",
+    "name": "BB - Brigu Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9049234,
+    "lng": 76.9031924,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P057",
+    "name": "NB - Nachiketas Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9006668,
+    "lng": 76.9047381,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.900647, 76.904610) and Copy 2 (10.900667, 76.904738)."
+  },
+  {
+    "id": "P058",
+    "name": "AB1 - Car Parking",
+    "category": "navigation_point",
+    "aliases": [],
+    "lat": 10.900953,
+    "lng": 76.9017642,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P059",
+    "name": "Amrita Automotive Research and Testing Centre (AARTC)",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9039469,
+    "lng": 76.8960839,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.904768, 76.895362) and Copy 2 (10.903947, 76.896084)."
+  },
+  {
+    "id": "P060",
+    "name": "AIC - Amrita Incubator",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9044948,
+    "lng": 76.8964675,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.904768, 76.895362) and Copy 2 (10.904495, 76.896467)."
+  },
+  {
+    "id": "P061",
+    "name": "Fabrication Workshops",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.905242,
+    "lng": 76.8950742,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P062",
+    "name": "Boys' hostel Mess",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9031378,
+    "lng": 76.895995,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P063",
+    "name": "Staff Quarters",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.900775,
+    "lng": 76.899876,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P064",
+    "name": "VB - Vasishta Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9019833,
+    "lng": 76.8959934,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P065",
+    "name": "AB - Agastya Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9022886,
+    "lng": 76.8954476,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P066",
+    "name": "Boys Hostel Basketball Court",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9022563,
+    "lng": 76.8951779,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P067",
+    "name": "Indoor Badminton Court - Boys Hostel",
+    "category": "sports_or_venue",
+    "aliases": [],
+    "lat": 10.9024574,
+    "lng": 76.8952279,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P068",
+    "name": "GB - Gauthama Bhavanam",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9024067,
+    "lng": 76.8968561,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P069",
+    "name": "Dhanlaxmi Bank ATM",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9037445,
+    "lng": 76.8976909,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P070",
+    "name": "Biosensor Research Lab",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9042502,
+    "lng": 76.8992075,
+    "accuracy": "approximate",
+    "source_notes": "Coordinate discrepancy between Copy 1 (10.903745, 76.897691) and Copy 2 (10.904250, 76.899208)."
+  },
+  {
+    "id": "P071",
+    "name": "AB2 Parking",
+    "category": "navigation_point",
+    "aliases": [],
+    "lat": 10.9045206,
+    "lng": 76.898434,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P072",
+    "name": "KB - Kapila Bhavanam Girls Hostel",
+    "category": "hostel_or_residential",
+    "aliases": [],
+    "lat": 10.9045654,
+    "lng": 76.8997625,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P073",
+    "name": "Anokha Hub",
+    "category": "campus_location",
+    "aliases": [],
+    "lat": 10.901246,
+    "lng": 76.902068,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P074",
+    "name": "Laundry",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9013774,
+    "lng": 76.9018725,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P075",
+    "name": "Student's Parking",
+    "category": "navigation_point",
+    "aliases": [],
+    "lat": 10.8983306,
+    "lng": 76.9002132,
+    "accuracy": "verified"
+  },
+  {
+    "id": "P076",
+    "name": "Central Kitchen",
+    "category": "facility",
+    "aliases": [],
+    "lat": 10.9013542,
+    "lng": 76.901423,
+    "accuracy": "approximate",
+    "source_notes": "Present only in Copy 2 (frontend/src/data/buildings.json)."
+  },
+  {
+    "id": "P077",
+    "name": "Department of Amrita Dharshanam",
+    "category": "academic_or_research",
+    "aliases": [],
+    "lat": 10.9008925,
+    "lng": 76.9025546,
+    "accuracy": "approximate",
+    "source_notes": "Present only in Copy 2 (frontend/src/data/buildings.json)."
+  }
+]

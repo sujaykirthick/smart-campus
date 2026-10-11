@@ -129,26 +129,31 @@ const HALLS = [
     name: 'Amriteshwari',
     capacity: 400,
     location: 'Main Academic Block - Ground Floor',
+    location_id: 'P008', // Matches P008 (Amriteshwari Hall)
   },
   {
     name: 'Sudhamani Hall',
     capacity: 400,
     location: 'Central Block - 1st Floor',
+    location_id: null,
   },
   {
     name: 'Saraswathi Hall',
     capacity: 200,
     location: 'Library Complex - 2nd Floor',
+    location_id: null,
   },
   {
     name: 'sandeepani',
     capacity: 300,
     location: 'Science Block - Ground Floor',
+    location_id: null,
   },
   {
     name: 'acharya hall',
     capacity: 300,
     location: 'Engineering Wing - 3rd Floor',
+    location_id: null,
   },
 ];
 
@@ -233,17 +238,36 @@ async function seed() {
       .eq('name', hall.name)
       .maybeSingle();
 
+    const hallPayload: Record<string, unknown> = {
+      capacity: hall.capacity,
+      location: hall.location,
+    };
+    if (hall.location_id !== undefined) {
+      hallPayload.location_id = hall.location_id;
+    }
+
     if (existingHall) {
-      const { error } = await supabase
+      let { error } = await supabase
         .from('halls')
-        .update({ capacity: hall.capacity, location: hall.location })
+        .update(hallPayload)
         .eq('id', existingHall.id);
+      if (error && error.message.includes('location_id')) {
+        // If column hasn't been migrated yet, retry without location_id
+        delete hallPayload.location_id;
+        const res = await supabase.from('halls').update(hallPayload).eq('id', existingHall.id);
+        error = res.error;
+      }
       if (error) throw error;
-      console.log(`  ✓ Updated hall: ${hall.name} (${hall.capacity} seats)`);
+      console.log(`  ✓ Updated hall: ${hall.name} (${hall.capacity} seats, location_id: ${hall.location_id ?? 'null'})`);
     } else {
-      const { error } = await supabase.from('halls').insert(hall);
+      let { error } = await supabase.from('halls').insert({ ...hall, ...hallPayload });
+      if (error && error.message.includes('location_id')) {
+        delete hallPayload.location_id;
+        const res = await supabase.from('halls').insert({ name: hall.name, ...hallPayload });
+        error = res.error;
+      }
       if (error) throw error;
-      console.log(`  + Created hall: ${hall.name} (${hall.capacity} seats)`);
+      console.log(`  + Created hall: ${hall.name} (${hall.capacity} seats, location_id: ${hall.location_id ?? 'null'})`);
     }
   }
 

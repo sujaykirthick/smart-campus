@@ -48,7 +48,19 @@ export interface Hall {
   name: string;
   capacity: number;
   location: string | null;
+  location_id?: string | null;
   created_at?: string;
+}
+
+export interface CampusLocation {
+  id: string;
+  name: string;
+  category: string;
+  aliases: string[];
+  lat: number;
+  lng: number;
+  accuracy: 'verified' | 'approximate';
+  source_notes?: string;
 }
 
 export interface PublicHallBooking {

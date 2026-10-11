@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { AllowedUser, UserRole } from '@/lib/types';
-import { LogOut, LogIn, Menu, X, Calendar, Shield, Ticket, PlusCircle, CheckSquare } from 'lucide-react';
+import { LogOut, LogIn, Menu, X, Calendar, Shield, Ticket, PlusCircle, CheckSquare, MapPin } from 'lucide-react';
 import Image from 'next/image';
 
 export default function Navbar() {
@@ -89,6 +89,7 @@ export default function Navbar() {
     const links: Array<{ href: string; label: string; icon: any }> = [
       { href: '/events', label: 'Events', icon: Calendar },
       { href: '/halls', label: 'Halls', icon: Calendar },
+      { href: '/map', label: 'Campus Map', icon: MapPin },
     ];
 
     if (!profile) return links;

@@ -38,7 +38,9 @@ import {
   ExternalLink,
   ChevronRight,
   Shield,
+  Navigation,
 } from 'lucide-react';
+import { getHallLocationId } from '@/lib/map-service';
 
 interface WaitlistRankMap {
   [registrationId: string]: number;
@@ -487,11 +489,22 @@ export default function MyEventsPage() {
 
                       {/* Venue & Timing */}
                       <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
-                          <span className="font-medium text-neutral-800">
-                            {formatHall(ev.halls?.name, ev.halls?.capacity)}
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                            <span className="font-medium text-neutral-800">
+                              {formatHall(ev.halls?.name, ev.halls?.capacity)}
+                            </span>
+                          </div>
+                          {getHallLocationId(ev.halls) && (
+                            <Link
+                              href={`/map?place=${getHallLocationId(ev.halls)}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              <Navigation className="w-3 h-3 text-blue-600" />
+                              Locate venue
+                            </Link>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-neutral-600">
                           <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
@@ -592,9 +605,20 @@ export default function MyEventsPage() {
                       </div>
 
                       <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
-                          <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                            <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                          </div>
+                          {getHallLocationId(ev.halls) && (
+                            <Link
+                              href={`/map?place=${getHallLocationId(ev.halls)}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              <Navigation className="w-3 h-3 text-blue-600" />
+                              Locate venue
+                            </Link>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-neutral-600">
                           <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
@@ -682,9 +706,20 @@ export default function MyEventsPage() {
                       </div>
 
                       <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
-                          <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                            <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                          </div>
+                          {getHallLocationId(ev.halls) && (
+                            <Link
+                              href={`/map?place=${getHallLocationId(ev.halls)}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              <Navigation className="w-3 h-3 text-blue-600" />
+                              Locate venue
+                            </Link>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-neutral-600">
                           <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
@@ -781,9 +816,20 @@ export default function MyEventsPage() {
                     </div>
 
                     <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-600 space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
-                        <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-[#A4161A] shrink-0" />
+                          <span>{formatHall(ev.halls?.name, ev.halls?.capacity)}</span>
+                        </div>
+                        {getHallLocationId(ev.halls) && (
+                          <Link
+                            href={`/map?place=${getHallLocationId(ev.halls)}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                          >
+                            <Navigation className="w-3 h-3 text-blue-600" />
+                            Locate venue
+                          </Link>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-neutral-600">
                         <Clock className="h-3.5 w-3.5 text-neutral-400 shrink-0" />

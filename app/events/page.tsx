@@ -36,7 +36,9 @@ import {
   Plus,
   Camera,
   ExternalLink,
+  Navigation,
 } from 'lucide-react';
+import { getHallLocationId } from '@/lib/map-service';
 
 interface SeatCountInfo {
   registered: number;
@@ -516,6 +518,7 @@ export default function EventsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredList.map((event) => {
             const hall = halls.find((h) => h.id === event.hall_id) || event.halls;
+            const hallLocationId = getHallLocationId(hall);
             const festObj = festsById.get(event.fest_id || '') || event.fests;
 
             const countInfo = seatCounts[event.id] || { registered: 0, waitlisted: 0 };
@@ -668,6 +671,18 @@ export default function EventsPage() {
                         </span>
                       )}
                     </div>
+
+                    {hallLocationId && (
+                      <div className="flex items-center justify-start">
+                        <Link
+                          href={`/map?place=${hallLocationId}`}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                          <Navigation className="w-3 h-3 text-blue-600" />
+                          Locate venue
+                        </Link>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-1.5 text-neutral-500 text-[11px]">
                       <Calendar className="h-3.5 w-3.5 text-neutral-400 shrink-0" />

@@ -45,7 +45,9 @@ import {
   ChevronRight,
   Sparkles,
   QrCode,
+  Navigation,
 } from 'lucide-react';
+import { getHallLocationId } from '@/lib/map-service';
 
 interface VolunteerApplicant {
   id: string;
@@ -325,6 +327,13 @@ export default function HostEventDashboardPage() {
                 <ArrowLeft className="h-4 w-4" /> All Events
               </Button>
             </Link>
+            {getHallLocationId(hall) && (
+              <Link href={`/map?place=${getHallLocationId(hall)}`}>
+                <Button variant="secondary" size="sm">
+                  <Navigation className="h-4 w-4 text-blue-600" /> Locate venue
+                </Button>
+              </Link>
+            )}
             {event.status === 'approved' && (
               <Link href={`/organizer/scan/${event.id}`}>
                 <Button variant="primary" size="sm">

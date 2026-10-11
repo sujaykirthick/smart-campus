@@ -167,7 +167,7 @@ export default function OrganizationInsightsPage() {
       // Fetch past approved events for this organization
       const { data: events, error: evErr } = await supabase
         .from('events')
-        .select('id, title, start_time, end_time, hall_id, halls(name), status')
+        .select('id, title, start_time, end_time, hall_id, halls:halls!events_hall_id_fkey(name), status')
         .eq('organization_id', orgId)
         .eq('status', 'approved')
         .order('start_time', { ascending: false });

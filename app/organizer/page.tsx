@@ -38,7 +38,9 @@ import {
   Hourglass,
   TrendingUp,
   ChevronRight,
+  Navigation,
 } from 'lucide-react';
+import { getHallLocationId } from '@/lib/map-service';
 
 interface EventStats {
   registered: number;
@@ -350,6 +352,15 @@ export default function OrganizerPage() {
                             <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
                             {formatHall(hall?.name, hall?.capacity)}
                           </div>
+                          {getHallLocationId(hall) && (
+                            <Link
+                              href={`/map?place=${getHallLocationId(hall)}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              <Navigation className="w-3 h-3 text-blue-600" />
+                              Locate venue
+                            </Link>
+                          )}
                           <div className="flex items-center gap-1 text-neutral-500 font-mono text-[11px]">
                             <Calendar className="h-3.5 w-3.5 text-neutral-400" />
                             {formatEventDate(event.start_time, event.end_time)}
