@@ -73,30 +73,41 @@ export default function Navbar() {
 
   const getRoleDashboardLink = () => {
     if (!profile) return null;
-    if (profile.role === 'club' || profile.role === 'department') {
-      return { href: '/organizer', label: 'Organizer Portal', icon: ClipboardList };
+    if (profile.role === 'student' || profile.role === 'faculty') {
+      return { href: '/organizer', label: 'My Events', icon: ClipboardList };
     }
-    if (profile.role === 'affairs') {
-      return { href: '/affairs', label: 'Student Welfare', icon: Shield };
+    if (profile.role === 'affairs' || profile.role === 'student_affairs') {
+      return { href: '/approvals', label: 'Student Welfare', icon: Shield };
     }
-    return { href: '/events', label: 'Events', icon: Compass };
+    if (profile.role === 'event_office') {
+      return { href: '/approvals', label: 'Event Office', icon: Shield };
+    }
+    if (profile.role === 'cd') {
+      return { href: '/approvals', label: 'Campus Director', icon: Shield };
+    }
+    return null;
   };
 
   const roleDashboard = getRoleDashboardLink();
 
   const getRoleBadgeLabel = (role?: string) => {
-    if (role === 'affairs') return 'Student Welfare';
+    if (role === 'student') return 'Student';
+    if (role === 'faculty') return 'Faculty';
+    if (role === 'affairs' || role === 'student_affairs') return 'Student Welfare';
+    if (role === 'event_office') return 'Event Office';
+    if (role === 'cd') return 'Campus Director';
     return role;
   };
 
   const getRoleBadgeColor = (role?: string) => {
     switch (role) {
       case 'affairs':
+      case 'student_affairs':
+      case 'event_office':
+      case 'cd':
         return 'bg-red-50 text-red-900 border-red-200';
-      case 'club':
-        return 'bg-amber-50 text-amber-900 border-amber-200';
-      case 'department':
-        return 'bg-neutral-100 text-neutral-800 border-neutral-300';
+      case 'faculty':
+        return 'bg-purple-50 text-purple-900 border-purple-200';
       case 'student':
         return 'bg-blue-50 text-blue-900 border-blue-200';
       default:
@@ -168,7 +179,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            {roleDashboard && roleDashboard.href !== '/events' && (
+            {roleDashboard && (
               <Link
                 href={roleDashboard.href}
                 className={`px-3 py-1.5 rounded-md transition-colors ${

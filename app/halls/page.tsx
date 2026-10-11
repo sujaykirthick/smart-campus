@@ -220,8 +220,12 @@ function HallsContent() {
     return freeSlots;
   };
 
-  const totalBookedCount = bookings.filter((b) => b.status === 'approved').length;
-  const totalPendingCount = bookings.filter((b) => b.status === 'submitted').length;
+  const totalBookedCount = bookings.filter(
+    (b) => b.status === 'booked' || b.status === 'approved' || b.approval_stage === 'cd'
+  ).length;
+  const totalPendingCount = bookings.filter(
+    (b) => b.status === 'pending' || (b.status === 'submitted' && b.approval_stage !== 'cd')
+  ).length;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
@@ -293,17 +297,17 @@ function HallsContent() {
           <div className="text-base font-bold text-neutral-900 mt-0.5">{formattedDateTitle}</div>
         </div>
 
-        {/* Legend */}
+        {/* Legend (Requirement 4) */}
         <div className="flex flex-wrap items-center gap-4 text-xs">
-          {/* Distinct Dark Crimson for Booked */}
+          {/* Red for Booked */}
           <div className="flex items-center gap-1.5">
             <span className="h-3 w-3 rounded bg-[#7F1D1D]"></span>
-            <span className="text-neutral-700 font-medium">Booked (Approved)</span>
+            <span className="text-neutral-700 font-medium">Booked</span>
           </div>
           {/* Amber for Pending */}
           <div className="flex items-center gap-1.5">
             <span className="h-3 w-3 rounded bg-[#D97706]"></span>
-            <span className="text-neutral-700 font-medium">Pending Review</span>
+            <span className="text-neutral-700 font-medium">Pending approval (not yet reserved)</span>
           </div>
           {/* Green for Free */}
           <div className="flex items-center gap-1.5">
@@ -322,19 +326,19 @@ function HallsContent() {
           </div>
         </div>
         <div className="rounded-md border border-neutral-200 bg-white p-3.5 shadow-xs">
-          <div className="text-xs text-neutral-500 font-medium">Total Bookings Today</div>
+          <div className="text-xs text-neutral-500 font-medium">Total Requests Today</div>
           <div className="mt-1 text-xl font-bold text-neutral-900">
             {bookings.length}
           </div>
         </div>
         <div className="rounded-md border border-red-200 bg-red-50 p-3.5 shadow-xs">
-          <div className="text-xs text-[#991B1B] font-medium">Approved Events</div>
+          <div className="text-xs text-[#991B1B] font-medium">Booked (Reserved)</div>
           <div className="mt-1 text-xl font-bold text-[#991B1B]">
             {totalBookedCount}
           </div>
         </div>
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3.5 shadow-xs">
-          <div className="text-xs text-amber-800 font-medium">Pending Review</div>
+          <div className="text-xs text-amber-800 font-medium">Pending Approval</div>
           <div className="mt-1 text-xl font-bold text-amber-900">
             {totalPendingCount}
           </div>
@@ -437,18 +441,19 @@ function HallsContent() {
                       {/* Render booked / submitted time blocks */}
                       {hallBookings.map((b, idx) => {
                         const { left, width } = getTimelinePosition(b.start_time, b.end_time);
-                        const isApproved = b.status === 'approved';
+                        const isBooked =
+                          b.status === 'booked' || b.status === 'approved' || b.approval_stage === 'cd';
 
                         return (
                           <div
                             key={idx}
                             style={{ left, width }}
                             className={`absolute top-0.5 bottom-0.5 rounded px-2 flex items-center overflow-hidden cursor-pointer ${
-                              isApproved
+                              isBooked
                                 ? 'bg-[#7F1D1D] text-white'
                                 : 'bg-[#D97706] text-white'
                             }`}
-                            title={`${b.title} (${b.status}): ${formatTime(b.start_time)} - ${formatTime(b.end_time)}`}
+                            title={`${b.title} (${isBooked ? 'Booked' : 'Pending'}): ${formatTime(b.start_time)} - ${formatTime(b.end_time)}`}
                           >
                             <span className="truncate text-xs font-medium">
                               {b.title}
@@ -496,28 +501,35 @@ function HallsContent() {
                         </div>
                       ) : (
                         <div className="space-y-1.5">
-                          {hallBookings.map((b, bIdx) => (
-                            <div
-                              key={bIdx}
-                              className="flex items-center justify-between border-b border-neutral-200 pb-1 last:border-0 last:pb-0"
-                            >
-                              <div>
-                                <div className="font-medium text-neutral-900 line-clamp-1">{b.title}</div>
-                                <div className="text-[11px] text-neutral-500 font-mono">
-                                  {formatTime(b.start_time)} – {formatTime(b.end_time)}
-                                </div>
-                              </div>
-                              <span
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                                  b.status === 'approved'
-                                    ? 'bg-red-100 text-[#991B1B] border border-red-200'
-                                    : 'bg-amber-100 text-amber-900 border border-amber-200'
-                                }`}
+                          {hallBookings.map((b, bIdx) => {
+                            const isBooked =
+                              b.status === 'booked' ||
+                              b.status === 'approved' ||
+                              b.approval_stage === 'cd';
+
+                            return (
+                              <div
+                                key={bIdx}
+                                className="flex items-center justify-between border-b border-neutral-200 pb-1 last:border-0 last:pb-0"
                               >
-                                {b.status}
-                              </span>
-                            </div>
-                          ))}
+                                <div>
+                                  <div className="font-medium text-neutral-900 line-clamp-1">{b.title}</div>
+                                  <div className="text-[11px] text-neutral-500 font-mono">
+                                    {formatTime(b.start_time)} – {formatTime(b.end_time)}
+                                  </div>
+                                </div>
+                                <span
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                    isBooked
+                                      ? 'bg-red-100 text-[#991B1B] border border-red-200'
+                                      : 'bg-amber-100 text-amber-900 border border-amber-200'
+                                  }`}
+                                >
+                                  {isBooked ? 'Booked' : 'Pending'}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

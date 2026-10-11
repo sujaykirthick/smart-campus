@@ -69,7 +69,7 @@ export default function EventInsightsPage() {
       // 1. Fetch Event details
       const { data: ev, error: evErr } = await supabase
         .from('events')
-        .select('*, halls(id, name, capacity, location), fests(id, name)')
+        .select('*, halls:halls!events_hall_id_fkey(id, name, capacity, location), fests(id, name)')
         .eq('id', eventId)
         .maybeSingle();
 
@@ -77,16 +77,31 @@ export default function EventInsightsPage() {
         throw new Error(evErr?.message || 'Event not found.');
       }
 
-      // Authorization check: owner or affairs
+      // Authorization check: owner, organization member, or approvers
       if (ev.organizer_email !== user.email) {
+        let isAuthorized = false;
         const { data: profile } = await supabase
           .from('allowed_users')
-          .select('role')
+          .select('*')
           .eq('email', user.email)
           .maybeSingle();
 
-        if (profile?.role !== 'affairs') {
-          throw new Error('Unauthorized. Only the event organizer or Affairs can access event insights.');
+        if (profile && ['affairs', 'student_affairs', 'event_office', 'cd'].includes(profile.role)) {
+          isAuthorized = true;
+        }
+
+        if (!isAuthorized && ev.organization_id) {
+          const { data: isMember } = await supabase.rpc('is_org_member', {
+            p_org_id: ev.organization_id,
+            p_email: user.email,
+          });
+          if (isMember) {
+            isAuthorized = true;
+          }
+        }
+
+        if (!isAuthorized) {
+          throw new Error('Unauthorized. Only the event organizer, organization members, or approval authorities can access event insights.');
         }
       }
 

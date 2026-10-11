@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
-    "seed:reviews": "tsx scripts/seed-reviews.ts"
+    "seed:reviews": "tsx scripts/seed-reviews.ts",
+    "demo:reset": "tsx scripts/reset-demo-data.ts",
+    "demo:seed": "tsx scripts/seed-demo-events.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",

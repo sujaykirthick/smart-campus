@@ -45,26 +45,36 @@ function LoginForm() {
       }
 
       // Lookup role in allowed_users whitelist
-      const { data: allowedUserData } = await supabase
+      const { data: allowedUserData, error: lookupError } = await supabase
         .from('allowed_users')
         .select('role')
         .eq('email', cleanEmail)
         .maybeSingle();
 
-      const userRole = allowedUserData?.role || authData.user.user_metadata?.role || 'student';
+      if (lookupError || !allowedUserData) {
+        await supabase.auth.signOut();
+        throw new Error(`Access denied: User "${cleanEmail}" is not authorized in the allowed_users whitelist.`);
+      }
+
+      const validRoles = ['student', 'faculty', 'student_affairs', 'event_office', 'cd'];
+      if (!validRoles.includes(allowedUserData.role)) {
+        await supabase.auth.signOut();
+        throw new Error(`Access denied: User "${cleanEmail}" has unrecognized role "${allowedUserData.role}".`);
+      }
+
+      const userRole = allowedUserData.role;
 
       // Redirect by role
       if (nextParam) {
         router.push(nextParam);
       } else {
         switch (userRole) {
-          case 'club':
-          case 'department':
-            router.push('/organizer');
+          case 'student_affairs':
+          case 'event_office':
+          case 'cd':
+            router.push('/approvals');
             break;
-          case 'affairs':
-            router.push('/affairs');
-            break;
+          case 'faculty':
           case 'student':
           default:
             router.push('/events');
@@ -174,20 +184,11 @@ function LoginForm() {
 
               <button
                 type="button"
-                onClick={() => quickFill('codingclub@demo.edu')}
+                onClick={() => quickFill('faculty1@demo.edu')}
                 className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
               >
-                <div className="font-semibold text-[11px]">Club</div>
-                <div className="text-[10px] text-neutral-500 truncate font-mono">codingclub@demo.edu</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => quickFill('cse@demo.edu')}
-                className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
-              >
-                <div className="font-semibold text-[11px]">Department</div>
-                <div className="text-[10px] text-neutral-500 truncate font-mono">cse@demo.edu</div>
+                <div className="font-semibold text-[11px]">Faculty</div>
+                <div className="text-[10px] text-neutral-500 truncate font-mono">faculty1@demo.edu</div>
               </button>
 
               <button
@@ -195,8 +196,26 @@ function LoginForm() {
                 onClick={() => quickFill('affairs@demo.edu')}
                 className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
               >
-                <div className="font-semibold text-[11px]">Student Welfare</div>
+                <div className="font-semibold text-[11px]">Student Affairs</div>
                 <div className="text-[10px] text-neutral-500 truncate font-mono">affairs@demo.edu</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => quickFill('eventoffice@demo.edu')}
+                className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+              >
+                <div className="font-semibold text-[11px]">Event Office</div>
+                <div className="text-[10px] text-neutral-500 truncate font-mono">eventoffice@demo.edu</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => quickFill('cd@demo.edu')}
+                className="rounded-sm border border-neutral-200 bg-white px-2 py-1 text-left text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer col-span-2"
+              >
+                <div className="font-semibold text-[11px]">Campus Director (CD)</div>
+                <div className="text-[10px] text-neutral-500 truncate font-mono">cd@demo.edu</div>
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -29,6 +30,17 @@ interface WaitlistRankMap {
   [registrationId: string]: number; // 1-indexed position
 }
 
+const MemoizedQRCode = React.memo(function MemoizedQRCode({ token }: { token: string }) {
+  return (
+    <QRCodeSVG
+      value={token}
+      size={200}
+      level="H"
+      includeMargin={true}
+    />
+  );
+});
+
 export default function MyEventsPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<AllowedUser | null>(null);
@@ -36,11 +48,21 @@ export default function MyEventsPage() {
   const [volunteerRoles, setVolunteerRoles] = useState<Volunteer[]>([]);
   const [waitlistRanks, setWaitlistRanks] = useState<WaitlistRankMap>({});
   const [userReviews, setUserReviews] = useState<Record<string, Review>>({});
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [activeViewTab, setActiveViewTab] = useState<'passes' | 'volunteering'>('passes');
-  const [selectedTicket, setSelectedTicket] = useState<Registration | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const selectedTicket = useMemo(() => {
+    if (!selectedTicketId) return null;
+    return registrations.find((r) => r.id === selectedTicketId) || null;
+  }, [registrations, selectedTicketId]);
 
   // Review Modal State
   const [reviewingEvent, setReviewingEvent] = useState<{
@@ -54,8 +76,8 @@ export default function MyEventsPage() {
 
   const supabase = useMemo(() => createClient(), []);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setInitialLoading(true);
     setErrorMsg(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -97,7 +119,7 @@ export default function MyEventsPage() {
               club_or_dept,
               poster_url,
               registration_link,
-              halls (
+              halls:halls!events_hall_id_fkey (
                 id,
                 name,
                 capacity,
@@ -125,7 +147,7 @@ export default function MyEventsPage() {
               organizer_email,
               club_or_dept,
               poster_url,
-              halls (
+              halls:halls!events_hall_id_fkey (
                 id,
                 name,
                 capacity,
@@ -147,11 +169,23 @@ export default function MyEventsPage() {
       ]);
 
       if (regsRes.error) throw regsRes.error;
-      const loadedRegs = (regsRes.data as unknown as Registration[]) || [];
-      setRegistrations(loadedRegs);
+      const rawRegs = (regsRes.data as unknown as Registration[]) || [];
+      const loadedRegs = rawRegs.filter(
+        (r) => !r.events || r.student_email?.toLowerCase().trim() !== r.events.organizer_email?.toLowerCase().trim()
+      );
+
+      // Merge registrations smoothly without unmounting list
+      setRegistrations((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(loadedRegs)) return prev;
+        return loadedRegs;
+      });
 
       if (volsRes.data) {
-        setVolunteerRoles(volsRes.data as unknown as Volunteer[]);
+        const loadedVols = volsRes.data as unknown as Volunteer[];
+        setVolunteerRoles((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(loadedVols)) return prev;
+          return loadedVols;
+        });
       }
 
       if (reviewsRes.data) {
@@ -184,27 +218,39 @@ export default function MyEventsPage() {
         );
         setWaitlistRanks(ranks);
       }
-
-      // If a ticket was currently opened in modal, refresh its data
-      if (selectedTicket) {
-        const updated = loadedRegs.find((r) => r.id === selectedTicket.id);
-        if (updated && updated.status === 'confirmed') {
-          setSelectedTicket(updated);
-        } else {
-          setSelectedTicket(null);
-        }
-      }
     } catch (err: any) {
       console.error('Error fetching registrations:', err);
       setErrorMsg(err?.message || 'Failed to load your registrations.');
     } finally {
-      setLoading(false);
+      if (!isSilent) setInitialLoading(false);
     }
-  }, [supabase, router, selectedTicket]);
+  }, [supabase, router]);
 
+  // Initial fetch only
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, [loadData]);
+
+  // Background polling every 30 seconds and on window focus; paused while QR modal is open
+  useEffect(() => {
+    if (selectedTicketId !== null) return;
+
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 30000);
+
+    const onFocus = () => {
+      if (selectedTicketId === null) {
+        loadData(true);
+      }
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [loadData, selectedTicketId]);
 
   const handleCancelRegistration = async (regId: string, eventTitle: string, isWaitlist: boolean) => {
     const actionLabel = isWaitlist ? 'leave the waitlist for' : 'cancel registration for';
@@ -219,10 +265,10 @@ export default function MyEventsPage() {
 
       if (error) throw error;
 
-      if (selectedTicket?.id === regId) {
-        setSelectedTicket(null);
+      if (selectedTicketId === regId) {
+        setSelectedTicketId(null);
       }
-      loadData();
+      loadData(true);
     } catch (err: any) {
       alert(err?.message || 'Failed to cancel registration.');
     } finally {
@@ -329,7 +375,7 @@ export default function MyEventsPage() {
             </Link>
 
             <button
-              onClick={loadData}
+              onClick={() => loadData(false)}
               className="rounded-md border border-neutral-300 bg-white p-1.5 text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
               title="Refresh passes"
             >
@@ -396,7 +442,7 @@ export default function MyEventsPage() {
       {/* 1. PASSES VIEW */}
       {activeViewTab === 'passes' && (
         <>
-          {loading ? (
+          {initialLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-40 w-full animate-pulse rounded-md bg-neutral-100 border border-neutral-200" />
@@ -481,7 +527,7 @@ export default function MyEventsPage() {
                         {/* QR Thumbnail */}
                         {!isWaitlisted && (
                           <button
-                            onClick={() => setSelectedTicket(reg)}
+                            onClick={() => setSelectedTicketId(reg.id)}
                             className="p-1.5 rounded border border-neutral-200 bg-white hover:border-[#A4161A] shadow-xs cursor-pointer shrink-0"
                             title="View QR pass"
                           >
@@ -578,7 +624,7 @@ export default function MyEventsPage() {
                     <div className="p-3 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between gap-2">
                       {!isWaitlisted ? (
                         <button
-                          onClick={() => setSelectedTicket(reg)}
+                          onClick={() => setSelectedTicketId(reg.id)}
                           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded bg-[#A4161A] py-1.5 text-xs font-semibold text-white hover:bg-[#851215] transition-colors cursor-pointer"
                         >
                           <QrCode className="h-3.5 w-3.5" />
@@ -648,15 +694,19 @@ export default function MyEventsPage() {
                           <div className="flex items-center gap-2">
                             {isAccepted ? (
                               <span className="inline-flex items-center gap-1 rounded bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
-                                <CheckCircle2 className="h-3 w-3" /> Accepted Volunteer
+                                <CheckCircle2 className="h-3 w-3" /> Accepted
                               </span>
                             ) : vol.status === 'rejected' ? (
                               <span className="inline-flex items-center gap-1 rounded bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-medium text-[#991B1B]">
-                                <AlertCircle className="h-3 w-3" /> Application Declined
+                                <AlertCircle className="h-3 w-3" /> Not selected
+                              </span>
+                            ) : vol.status === 'withdrawn' ? (
+                              <span className="inline-flex items-center gap-1 rounded bg-neutral-100 border border-neutral-300 px-2 py-0.5 text-[10px] font-medium text-neutral-600">
+                                Withdrawn
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900">
-                                <Clock className="h-3 w-3" /> Application Pending
+                                <Clock className="h-3 w-3" /> Applied (pending)
                               </span>
                             )}
                           </div>
@@ -688,18 +738,33 @@ export default function MyEventsPage() {
 
                     <div className="p-3 bg-neutral-50 border-t border-neutral-200">
                       {isAccepted ? (
-                        <Link
-                          href={`/organizer/scan/${vol.event_id}`}
-                          className="flex items-center justify-center gap-2 rounded bg-emerald-700 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors"
-                        >
-                          <Camera className="h-3.5 w-3.5" />
-                          Open Volunteer Scanner
-                        </Link>
+                        <div className="space-y-1">
+                          <Link
+                            href={`/organizer/scan/${vol.event_id}`}
+                            className="flex items-center justify-center gap-2 rounded bg-emerald-700 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shadow-xs"
+                          >
+                            <Camera className="h-3.5 w-3.5" />
+                            Scan attendance
+                          </Link>
+                          {(() => {
+                            const nowTime = Date.now();
+                            const evStartMs = ev.start_time ? new Date(ev.start_time).getTime() : 0;
+                            const evEndMs = ev.end_time ? new Date(ev.end_time).getTime() : 0;
+                            const isScanWindow = evStartMs > 0 && evEndMs > 0 && (nowTime >= evStartMs - 30 * 60 * 1000 && nowTime <= evEndMs + 30 * 60 * 1000);
+                            return !isScanWindow ? (
+                              <p className="text-[10px] text-neutral-500 text-center italic">
+                                Scanning opens 30 min before the event starts and closes 30 min after it ends
+                              </p>
+                            ) : null;
+                          })()}
+                        </div>
                       ) : (
                         <div className="text-xs text-center text-neutral-500">
                           {vol.status === 'rejected'
-                            ? 'Volunteer quota filled.'
-                            : 'Pending organizer approval.'}
+                            ? 'Application not selected.'
+                            : vol.status === 'withdrawn'
+                            ? 'Application withdrawn.'
+                            : 'Pending organizer review.'}
                         </div>
                       )}
                     </div>
@@ -807,95 +872,98 @@ export default function MyEventsPage() {
         </div>
       )}
 
-      {/* FULL SCREEN HIGH-CONTRAST QR PASS MODAL (Mobile First) */}
-      {selectedTicket && selectedTicket.events && selectedTicket.status === 'confirmed' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-          <div className="relative w-full max-w-sm rounded-md bg-white p-6 text-neutral-900 shadow-xl border border-neutral-200 space-y-4">
-            <button
-              onClick={() => setSelectedTicket(null)}
-              className="absolute top-4 right-4 rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
+      {/* FULL SCREEN HIGH-CONTRAST QR PASS MODAL (Rendered via Portal to avoid unmounting/flicker) */}
+      {mounted &&
+        selectedTicket &&
+        selectedTicket.events &&
+        selectedTicket.status === 'confirmed' &&
+        createPortal(
+          <div
+            key={selectedTicket.id}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          >
+            <div className="relative w-full max-w-sm rounded-md bg-white p-6 text-neutral-900 shadow-xl border border-neutral-200 space-y-4">
+              <button
+                onClick={() => setSelectedTicketId(null)}
+                className="absolute top-4 right-4 rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
 
-            {/* Header & Student Roll / Name */}
-            <div className="text-center space-y-1 pt-1">
-              <div className="inline-block rounded bg-[#A4161A] px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">
-                Digital Event Pass
-              </div>
-
-              <h2 className="text-lg font-bold text-neutral-900 leading-snug pt-1">
-                {selectedTicket.events.title}
-              </h2>
-
-              <div className="mt-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs">
-                <div className="font-bold text-sm text-neutral-900">
-                  {profile?.name || selectedTicket.student_email}
+              {/* Header & Student Roll / Name */}
+              <div className="text-center space-y-1 pt-1">
+                <div className="inline-block rounded bg-[#A4161A] px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">
+                  Digital Event Pass
                 </div>
-                <div className="font-mono text-xs font-semibold text-[#A4161A] mt-0.5">
-                  Roll No: {selectedTicket.roll_no || profile?.roll_no || 'N/A'}
+
+                <h2 className="text-lg font-bold text-neutral-900 leading-snug pt-1">
+                  {selectedTicket.events.title}
+                </h2>
+
+                <div className="mt-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                  <div className="font-bold text-sm text-neutral-900">
+                    {profile?.name || selectedTicket.student_email}
+                  </div>
+                  <div className="font-mono text-xs font-semibold text-[#A4161A] mt-0.5">
+                    Roll No: {selectedTicket.roll_no || profile?.roll_no || 'N/A'}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* HIGH-CONTRAST QR CODE */}
-            <div className="flex flex-col items-center justify-center rounded border border-neutral-300 bg-white p-4">
-              <div className="p-2 bg-white">
-                <QRCodeSVG
-                  value={selectedTicket.qr_token}
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
+              {/* HIGH-CONTRAST MEMOIZED QR CODE */}
+              <div className="flex flex-col items-center justify-center rounded border border-neutral-300 bg-white p-4">
+                <div className="p-2 bg-white">
+                  <MemoizedQRCode token={selectedTicket.qr_token} />
+                </div>
 
-              <span className="mt-2 font-mono text-[10px] text-neutral-500 select-all">
-                TOKEN: {selectedTicket.qr_token}
-              </span>
-            </div>
-
-            {/* Venue and Timing */}
-            <div className="rounded border border-neutral-200 bg-neutral-50 p-2.5 space-y-1 text-xs text-neutral-700">
-              <div className="flex items-center justify-between font-medium">
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
-                  {selectedTicket.events.halls?.name || 'Campus Venue'}
+                <span className="mt-2 font-mono text-[10px] text-neutral-500 select-all">
+                  TOKEN: {selectedTicket.qr_token}
                 </span>
-                {selectedTicket.checked_in_at ? (
-                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Checked In
+              </div>
+
+              {/* Venue and Timing */}
+              <div className="rounded border border-neutral-200 bg-neutral-50 p-2.5 space-y-1 text-xs text-neutral-700">
+                <div className="flex items-center justify-between font-medium">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-[#A4161A]" />
+                    {selectedTicket.events.halls?.name || 'Campus Venue'}
                   </span>
-                ) : (
-                  <span className="text-[#A4161A] font-medium">Ready for scan</span>
-                )}
+                  {selectedTicket.checked_in_at ? (
+                    <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Checked In
+                    </span>
+                  ) : (
+                    <span className="text-[#A4161A] font-medium">Ready for scan</span>
+                  )}
+                </div>
+
+                <div className="text-[11px] text-neutral-500 font-mono">
+                  {new Date(selectedTicket.events.start_time).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })} • {new Date(selectedTicket.events.start_time).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })}
+                </div>
               </div>
 
-              <div className="text-[11px] text-neutral-500 font-mono">
-                {new Date(selectedTicket.events.start_time).toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                })} • {new Date(selectedTicket.events.start_time).toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                })}
-              </div>
+              <p className="text-center text-[11px] text-neutral-500">
+                Present this code at the hall entrance for check-in verification.
+              </p>
+
+              <button
+                onClick={() => setSelectedTicketId(null)}
+                className="w-full rounded bg-neutral-900 py-2 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
             </div>
-
-            <p className="text-center text-[11px] text-neutral-500">
-              Present this code at the hall entrance for check-in verification.
-            </p>
-
-            <button
-              onClick={() => setSelectedTicket(null)}
-              className="w-full rounded bg-neutral-900 py-2 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors cursor-pointer"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

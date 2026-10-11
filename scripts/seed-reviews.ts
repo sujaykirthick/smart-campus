@@ -82,12 +82,12 @@ async function main() {
   console.log('🌱 Running idempotent seed for demo accounts, past event, and reviews...\n');
 
   // 1. Ensure organizer account exists
-  const organizerEmail = 'codingclub@demo.edu';
+  const organizerEmail = 'faculty1@demo.edu';
   await supabase.from('allowed_users').upsert({
     email: organizerEmail,
-    role: 'club',
-    name: 'Coding Club',
-    club_name: 'Coding Club',
+    role: 'faculty',
+    name: 'Dr. Rajesh Nair',
+    department: 'Computer Science and Engineering',
   });
 
   const { data: orgUserList } = await supabase.auth.admin.listUsers();
@@ -98,14 +98,18 @@ async function main() {
       password: DEFAULT_PASSWORD,
       email_confirm: true,
       user_metadata: {
-        name: 'Coding Club',
-        role: 'club',
+        name: 'Dr. Rajesh Nair',
+        role: 'faculty',
       },
     });
   } else {
     await supabase.auth.admin.updateUserById(existingOrgUser.id, {
       password: DEFAULT_PASSWORD,
       email_confirm: true,
+      user_metadata: {
+        name: 'Dr. Rajesh Nair',
+        role: 'faculty',
+      },
     });
   }
 
@@ -170,6 +174,15 @@ async function main() {
     .eq('title', eventTitle)
     .limit(1);
 
+  // Fetch Coding Club id
+  const { data: codingClub } = await supabase
+    .from('organizations')
+    .select('id')
+    .eq('name', 'Coding Club')
+    .maybeSingle();
+
+  const codingClubId = codingClub?.id || null;
+
   let eventId: string;
   if (existingEvents && existingEvents.length > 0) {
     eventId = existingEvents[0].id;
@@ -177,6 +190,8 @@ async function main() {
       .from('events')
       .update({
         organizer_email: organizerEmail,
+        organizer_type: 'club',
+        organization_id: codingClubId,
         club_or_dept: 'Coding Club',
         hall_id: hallId,
         start_time: tempFutureStart,
@@ -191,6 +206,8 @@ async function main() {
       .insert({
         title: eventTitle,
         organizer_email: organizerEmail,
+        organizer_type: 'club',
+        organization_id: codingClubId,
         club_or_dept: 'Coding Club',
         hall_id: hallId,
         start_time: tempFutureStart,

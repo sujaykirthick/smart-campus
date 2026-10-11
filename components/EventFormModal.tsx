@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useId } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { CampusEvent, Hall, Fest, PublicHallBooking } from '@/lib/types';
+import type { CampusEvent, Hall, Fest, PublicHallBooking, Organization, OrganizerType } from '@/lib/types';
 import {
   X,
   Calendar,
@@ -40,6 +40,9 @@ export default function EventFormModal({
   const fileInputId = useId();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [organizerType, setOrganizerType] = useState<OrganizerType>('standalone');
+  const [organizationId, setOrganizationId] = useState<string>('');
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [hallId, setHallId] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('09:00');
@@ -59,6 +62,72 @@ export default function EventFormModal({
   const [loadingBookings, setLoadingBookings] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
+
+  const [userClubs, setUserClubs] = useState<Organization[]>([]);
+  const [userDepts, setUserDepts] = useState<Organization[]>([]);
+  const [loadingMemberships, setLoadingMemberships] = useState(false);
+
+  // Fetch organizations and filter for the current user's memberships
+  useEffect(() => {
+    if (!isOpen || !userEmail) return;
+
+    let ignore = false;
+    async function loadOrganizationsAndMemberships() {
+      setLoadingMemberships(true);
+      try {
+        const [orgsRes, membersRes, profileRes, ccdRes] = await Promise.all([
+          supabase.from('organizations').select('*').order('name', { ascending: true }),
+          supabase.from('organization_members').select('organization_id').ilike('email', userEmail),
+          supabase.from('allowed_users').select('*').eq('email', userEmail).maybeSingle(),
+          supabase.from('course_code_departments').select('*'),
+        ]);
+
+        if (ignore) return;
+
+        const allOrgs = (orgsRes.data as Organization[]) || [];
+        setOrganizations(allOrgs);
+
+        // 1. User's eligible clubs (from organization_members)
+        const memberOrgIds = new Set((membersRes.data || []).map((m) => m.organization_id));
+        const eligibleClubs = allOrgs.filter(
+          (o) => o.type === 'club' && memberOrgIds.has(o.id)
+        );
+        setUserClubs(eligibleClubs);
+
+        // 2. User's eligible departments (derived)
+        const profile = profileRes.data;
+        let eligibleDepts: Organization[] = [];
+
+        if (profile) {
+          if (profile.role === 'faculty' && profile.department) {
+            const facultyDept = allOrgs.find(
+              (o) => o.type === 'department' && o.name.toLowerCase() === profile.department?.toLowerCase()
+            );
+            if (facultyDept) eligibleDepts = [facultyDept];
+          } else if (profile.role === 'student' && profile.roll_no) {
+            // Check course_code_departments
+            const ccdList = ccdRes.data || [];
+            const lowerRoll = profile.roll_no.toLowerCase();
+            const matchedCcd = ccdList.find((c) => lowerRoll.includes(c.course_code.toLowerCase()));
+            if (matchedCcd) {
+              const matchedDept = allOrgs.find((o) => o.id === matchedCcd.organization_id);
+              if (matchedDept) eligibleDepts = [matchedDept];
+            }
+          }
+        }
+        setUserDepts(eligibleDepts);
+      } catch (err) {
+        if (!ignore) console.error('Error fetching organizations for modal:', err);
+      } finally {
+        if (!ignore) setLoadingMemberships(false);
+      }
+    }
+
+    loadOrganizationsAndMemberships();
+    return () => {
+      ignore = true;
+    };
+  }, [isOpen, userEmail, supabase]);
 
   // Fetch active fests
   useEffect(() => {
@@ -94,6 +163,11 @@ export default function EventFormModal({
     if (initialEvent) {
       setTitle(initialEvent.title || '');
       setDescription(initialEvent.description || '');
+      const initialType: OrganizerType =
+        initialEvent.organizer_type ||
+        (initialEvent.organization_id ? 'club' : initialEvent.club_or_dept ? 'club' : 'standalone');
+      setOrganizerType(initialType);
+      setOrganizationId(initialEvent.organization_id || '');
       setHallId(initialEvent.hall_id || (halls[0]?.id ?? ''));
       setFestId(initialEvent.fest_id || '');
       setVolunteersNeeded(initialEvent.volunteers_needed || 0);
@@ -120,6 +194,8 @@ export default function EventFormModal({
     } else {
       setTitle('');
       setDescription('');
+      setOrganizerType('standalone');
+      setOrganizationId('');
       setHallId(halls[0]?.id ?? '');
       setFestId('');
       setVolunteersNeeded(0);
@@ -139,9 +215,11 @@ export default function EventFormModal({
     setErrorMessage(null);
   }, [initialEvent, halls, isOpen]);
 
-  // Fetch bookings for the selected hall & date to surface early conflicts
+  // Fetch bookings for the selected date across all halls to detect disabled / pending halls
+  const [allDayBookings, setAllDayBookings] = useState<PublicHallBooking[]>([]);
+
   useEffect(() => {
-    if (!isOpen || !hallId || !date) return;
+    if (!isOpen || !date) return;
 
     let ignore = false;
     async function loadHallBookings() {
@@ -153,15 +231,12 @@ export default function EventFormModal({
         const { data, error } = await supabase
           .from('public_hall_bookings')
           .select('*')
-          .eq('hall_id', hallId)
-          .eq('status', 'approved')
           .gte('end_time', startOfDay)
           .lte('start_time', endOfDay)
           .order('start_time', { ascending: true });
 
         if (!ignore && !error && data) {
-          const filtered = initialEvent ? data.filter((b) => b.title !== initialEvent.title) : data;
-          setHallBookings(filtered);
+          setAllDayBookings(data as PublicHallBooking[]);
         }
       } catch (err) {
         if (!ignore) console.error('Error fetching hall bookings for conflict detection:', err);
@@ -174,27 +249,72 @@ export default function EventFormModal({
     return () => {
       ignore = true;
     };
-  }, [hallId, date, isOpen, initialEvent, supabase]);
+  }, [date, isOpen, supabase]);
 
-  // Check client-side overlap warning against approved bookings
-  const conflictDetected = useMemo(() => {
-    if (!date || !startTime || !endTime || hallBookings.length === 0) return null;
+  // Compute availability & conflict status per hall for the selected timeslot
+  const hallStatus = useMemo(() => {
+    const map: Record<
+      string,
+      { isBooked: boolean; isPending: boolean; title?: string; start_time?: string; end_time?: string }
+    > = {};
+    if (!date || !startTime || !endTime) return map;
 
     const myStart = new Date(`${date}T${startTime}:00`).getTime();
     const myEnd = new Date(`${date}T${endTime}:00`).getTime();
+    if (isNaN(myStart) || isNaN(myEnd) || myEnd <= myStart) return map;
 
-    if (isNaN(myStart) || isNaN(myEnd) || myEnd <= myStart) return null;
+    for (const h of halls) {
+      const matchingBookings = allDayBookings.filter((b) => b.hall_id === h.id);
+      let isBooked = false;
+      let isPending = false;
+      let bookedTitle = '';
+      let bStartTime = '';
+      let bEndTime = '';
 
-    for (const b of hallBookings) {
-      const bStart = new Date(b.start_time).getTime();
-      const bEnd = new Date(b.end_time).getTime();
+      for (const b of matchingBookings) {
+        if (initialEvent && (b.event_id === initialEvent.id || b.title === initialEvent.title)) {
+          continue;
+        }
 
-      if (myStart < bEnd && myEnd > bStart) {
-        return b;
+        const bStart = new Date(b.start_time).getTime();
+        const bEnd = new Date(b.end_time).getTime();
+
+        if (myStart < bEnd && myEnd > bStart) {
+          if (b.status === 'booked' || b.status === 'approved' || b.approval_stage === 'cd') {
+            isBooked = true;
+            bookedTitle = b.title;
+            bStartTime = b.start_time;
+            bEndTime = b.end_time;
+          } else {
+            isPending = true;
+          }
+        }
       }
+
+      map[h.id] = {
+        isBooked,
+        isPending,
+        title: bookedTitle,
+        start_time: bStartTime,
+        end_time: bEndTime,
+      };
+    }
+    return map;
+  }, [halls, allDayBookings, date, startTime, endTime, initialEvent]);
+
+  // Conflict warning on current selected hall
+  const conflictDetected = useMemo(() => {
+    if (!hallId) return null;
+    const info = hallStatus[hallId];
+    if (info?.isBooked) {
+      return {
+        title: info.title || 'Another Event',
+        start_time: info.start_time || '',
+        end_time: info.end_time || '',
+      };
     }
     return null;
-  }, [date, startTime, endTime, hallBookings]);
+  }, [hallId, hallStatus]);
 
   // Warning when editing an already approved event
   const isApprovedEventResubmission = useMemo(() => {
@@ -264,6 +384,11 @@ export default function EventFormModal({
       return;
     }
 
+    if (organizerType !== 'standalone' && !organizationId) {
+      setErrorMessage(`Please select a ${organizerType === 'club' ? 'Club' : 'Department'} organization.`);
+      return;
+    }
+
     if (!hallId) {
       setErrorMessage('Please select a hall venue.');
       return;
@@ -284,12 +409,25 @@ export default function EventFormModal({
 
     setSaving(true);
 
+    if (targetStatus === 'submitted' && hallStatus[hallId]?.isBooked) {
+      setErrorMessage(
+        'Another event has booked this hall for that time. Please choose a different hall or time.'
+      );
+      setSaving(false);
+      return;
+    }
+
     try {
+      const selectedOrg = organizations.find((o) => o.id === organizationId);
+      const orgName = organizerType === 'standalone' ? null : (selectedOrg?.name || clubOrDept || null);
+
       const payload = {
         title: title.trim(),
         description: description.trim() || null,
         organizer_email: userEmail,
-        club_or_dept: clubOrDept || null,
+        organizer_type: organizerType,
+        organization_id: organizerType === 'standalone' ? null : (organizationId || null),
+        club_or_dept: orgName,
         hall_id: hallId,
         start_time: startIso,
         end_time: endIso,
@@ -323,8 +461,13 @@ export default function EventFormModal({
     } catch (err: unknown) {
       console.error('Error saving event:', err);
       let msg = err instanceof Error ? err.message : 'Failed to save event.';
-      if (msg.includes('events_hall_time_no_overlap') || msg.includes('exclusion')) {
-        msg = 'This hall is already booked for that time by another approved event.';
+      if (
+        msg.includes('Another event has booked this hall') ||
+        msg.includes('already booked for that time') ||
+        msg.includes('events_hall_time_no_overlap') ||
+        msg.includes('exclusion')
+      ) {
+        msg = 'Another event has booked this hall for that time. Please choose a different hall or time.';
       }
       setErrorMessage(msg);
     } finally {
@@ -408,6 +551,127 @@ export default function EventFormModal({
             </div>
           )}
 
+          {/* Organized By Selector */}
+          <div className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50/70 p-3">
+            <label className="block text-xs font-semibold text-neutral-800">
+              Organized by <span className="text-[#A4161A]">*</span>
+            </label>
+
+            {loadingMemberships ? (
+              <div className="text-xs text-neutral-400 py-1">Loading affiliations...</div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrganizerType('standalone');
+                      setOrganizationId('');
+                    }}
+                    className={`flex-1 min-w-[90px] items-center justify-center py-2 px-3 rounded border font-medium transition-colors cursor-pointer ${
+                      organizerType === 'standalone'
+                        ? 'border-[#A4161A] bg-white text-[#A4161A] shadow-xs font-semibold'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                    }`}
+                  >
+                    Standalone
+                  </button>
+
+                  {userClubs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrganizerType('club');
+                        if (!organizationId || !userClubs.some((c) => c.id === organizationId)) {
+                          setOrganizationId(userClubs[0]?.id || '');
+                        }
+                      }}
+                      className={`flex-1 min-w-[90px] items-center justify-center py-2 px-3 rounded border font-medium transition-colors cursor-pointer ${
+                        organizerType === 'club'
+                          ? 'border-[#A4161A] bg-white text-[#A4161A] shadow-xs font-semibold'
+                          : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      Club ({userClubs.length})
+                    </button>
+                  )}
+
+                  {userDepts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrganizerType('department');
+                        if (!organizationId || !userDepts.some((d) => d.id === organizationId)) {
+                          setOrganizationId(userDepts[0]?.id || '');
+                        }
+                      }}
+                      className={`flex-1 min-w-[90px] items-center justify-center py-2 px-3 rounded border font-medium transition-colors cursor-pointer ${
+                        organizerType === 'department'
+                          ? 'border-[#A4161A] bg-white text-[#A4161A] shadow-xs font-semibold'
+                          : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      Department
+                    </button>
+                  )}
+                </div>
+
+                {userClubs.length === 0 && userDepts.length === 0 && (
+                  <p className="text-[11px] text-neutral-500 italic">
+                    You are not currently enrolled in any student clubs or mapped departments. Event will be submitted as Standalone.
+                  </p>
+                )}
+
+                {/* Organization Dropdown when Club or Department is selected */}
+                {organizerType === 'club' && userClubs.length > 0 && (
+                  <div className="pt-1.5">
+                    <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                      Select Your Club <span className="text-[#A4161A]">*</span>
+                    </label>
+                    <select
+                      required
+                      value={organizationId}
+                      onChange={(e) => setOrganizationId(e.target.value)}
+                      className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none cursor-pointer"
+                    >
+                      <option value="" disabled>
+                        -- Choose Affiliated Club --
+                      </option>
+                      {userClubs.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {organizerType === 'department' && userDepts.length > 0 && (
+                  <div className="pt-1.5">
+                    <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                      Select Your Department <span className="text-[#A4161A]">*</span>
+                    </label>
+                    <select
+                      required
+                      value={organizationId}
+                      onChange={(e) => setOrganizationId(e.target.value)}
+                      className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none cursor-pointer"
+                    >
+                      <option value="" disabled>
+                        -- Choose Department --
+                      </option>
+                      {userDepts.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
           {/* Event Title */}
           <div>
             <label className="block text-xs font-semibold text-neutral-800 mb-1">
@@ -448,12 +712,30 @@ export default function EventFormModal({
                 onChange={(e) => setHallId(e.target.value)}
                 className="w-full rounded border border-neutral-300 bg-white px-3 py-2 text-xs sm:text-sm text-neutral-900 focus:border-[#A4161A] focus:outline-none cursor-pointer"
               >
-                {halls.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name} ({h.capacity} seats)
-                  </option>
-                ))}
+                {halls.map((h) => {
+                  const statusInfo = hallStatus[h.id];
+                  const isBooked = statusInfo?.isBooked;
+                  return (
+                    <option key={h.id} value={h.id} disabled={isBooked}>
+                      {h.name} ({h.capacity} seats)
+                      {isBooked ? ' - Booked by another event' : ''}
+                    </option>
+                  );
+                })}
               </select>
+
+              {/* Warning notice if selected hall has pending requests (Requirement 4) */}
+              {hallStatus[hallId]?.isPending && !hallStatus[hallId]?.isBooked && (
+                <div className="mt-1.5 rounded border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900 flex items-start gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-700 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">Pending requests exist: </span>
+                    <span>
+                      Other organizers have submitted pending requests for this hall during this window. Pending requests do not reserve a hall until approved by Event Office.
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Fest Dropdown */}

@@ -130,29 +130,35 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
               <div className="rounded-md border border-neutral-200 bg-[#F5F5F5] p-3 space-y-1">
                 <div className="font-semibold text-neutral-900">Student Account</div>
                 <div className="font-mono text-neutral-700">student1@demo.edu</div>
-                <div className="text-[11px] text-neutral-500">Access: /events, /my-events</div>
+                <div className="text-[11px] text-neutral-500">Access: /events, /my-events, /organizer</div>
               </div>
 
               <div className="rounded-md border border-neutral-200 bg-[#F5F5F5] p-3 space-y-1">
-                <div className="font-semibold text-neutral-900">Club Organizer</div>
-                <div className="font-mono text-neutral-700">codingclub@demo.edu</div>
-                <div className="text-[11px] text-neutral-500">Access: /organizer</div>
+                <div className="font-semibold text-neutral-900">Faculty Account</div>
+                <div className="font-mono text-neutral-700">faculty1@demo.edu</div>
+                <div className="text-[11px] text-neutral-500">Access: /events, /organizer</div>
               </div>
 
               <div className="rounded-md border border-neutral-200 bg-[#F5F5F5] p-3 space-y-1">
-                <div className="font-semibold text-neutral-900">Department Organizer</div>
-                <div className="font-mono text-neutral-700">cse@demo.edu</div>
-                <div className="text-[11px] text-neutral-500">Access: /organizer</div>
-              </div>
-
-              <div className="rounded-md border border-neutral-200 bg-[#F5F5F5] p-3 space-y-1">
-                <div className="font-semibold text-neutral-900">Student Welfare (Affairs)</div>
+                <div className="font-semibold text-neutral-900">Student Affairs</div>
                 <div className="font-mono text-neutral-700">affairs@demo.edu</div>
-                <div className="text-[11px] text-neutral-500">Access: /affairs</div>
+                <div className="text-[11px] text-neutral-500">Access: /approvals (Stage 1)</div>
+              </div>
+
+              <div className="rounded-md border border-neutral-200 bg-[#F5F5F5] p-3 space-y-1">
+                <div className="font-semibold text-neutral-900">Event Office</div>
+                <div className="font-mono text-neutral-700">eventoffice@demo.edu</div>
+                <div className="text-[11px] text-neutral-500">Access: /approvals (Stage 2)</div>
+              </div>
+
+              <div className="rounded-md border border-neutral-200 bg-[#F5F5F5] p-3 space-y-1">
+                <div className="font-semibold text-neutral-900">Campus Director</div>
+                <div className="font-mono text-neutral-700">cd@demo.edu</div>
+                <div className="text-[11px] text-neutral-500">Access: /approvals (Stage 3)</div>
               </div>
             </div>
           </div>

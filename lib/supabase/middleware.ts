@@ -38,9 +38,17 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+
+  // Redirect legacy /affairs to /approvals
+  if (pathname.startsWith('/affairs')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/approvals';
+    return NextResponse.redirect(url);
+  }
+
   const isProtectedPath =
     pathname.startsWith('/organizer') ||
-    pathname.startsWith('/affairs') ||
+    pathname.startsWith('/approvals') ||
     pathname.startsWith('/events');
 
   // If unauthenticated trying to access a protected route

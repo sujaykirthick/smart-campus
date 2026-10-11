@@ -14,61 +14,139 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthenticated.' }, { status: 401 });
     }
 
-    // Fetch user profile
-    const { data: profile } = await supabase
-      .from('allowed_users')
+    const body = await req.json().catch(() => ({}));
+    const organizationId = body.organization_id || body.organizationId;
+
+    if (!organizationId) {
+      return NextResponse.json(
+        { error: 'organization_id is required to generate organization insights.' },
+        { status: 400 }
+      );
+    }
+
+    // 1. Verify membership server-side with is_org_member RPC or DB lookup
+    const { data: isMember, error: rpcErr } = await supabase.rpc('is_org_member', {
+      p_org_id: organizationId,
+      p_email: user.email,
+    });
+
+    let authorized = isMember === true;
+
+    // Fallback direct check if RPC had an issue or for approver roles
+    if (!authorized) {
+      const { data: profile } = await supabase
+        .from('allowed_users')
+        .select('*')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (profile && ['student_affairs', 'affairs', 'event_office', 'cd'].includes(profile.role)) {
+        authorized = true;
+      } else if (profile) {
+        // Check organization type
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('id, name, type')
+          .eq('id', organizationId)
+          .maybeSingle();
+
+        if (org?.type === 'club') {
+          const { data: memberRow } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('organization_id', organizationId)
+            .ilike('email', user.email)
+            .maybeSingle();
+          if (memberRow) authorized = true;
+        } else if (org?.type === 'department') {
+          if (profile.role === 'faculty' && profile.department && org.name) {
+            if (profile.department.trim().toLowerCase() === org.name.trim().toLowerCase()) {
+              authorized = true;
+            }
+          } else if (profile.role === 'student' && profile.roll_no) {
+            // Check course_code_departments
+            const { data: ccd } = await supabase
+              .from('course_code_departments')
+              .select('organization_id, course_code')
+              .eq('organization_id', organizationId);
+
+            if (ccd && ccd.length > 0) {
+              const lowerRoll = profile.roll_no.toLowerCase();
+              const matched = ccd.some((c) => lowerRoll.includes(c.course_code.toLowerCase()));
+              if (matched) authorized = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (!authorized) {
+      return NextResponse.json(
+        { error: 'Access denied: You are not an authorized member of this organization.' },
+        { status: 403 }
+      );
+    }
+
+    // 2. Fetch Organization Details
+    const { data: organization, error: orgErr } = await supabase
+      .from('organizations')
       .select('*')
-      .eq('email', user.email)
+      .eq('id', organizationId)
       .maybeSingle();
 
-    const organizerEmail = user.email;
-    const organizerName =
-      profile?.club_name || profile?.department || profile?.name || organizerEmail.split('@')[0];
+    if (orgErr || !organization) {
+      return NextResponse.json({ error: 'Organization not found.' }, { status: 404 });
+    }
 
-    // 1. Fetch all past approved events for this organizer
+    const orgName = organization.name;
+
+    // 3. Fetch all past approved events for this organization
     const nowIso = new Date().toISOString();
     const { data: pastEvents, error: eventsErr } = await supabase
       .from('events')
-      .select('*, halls(id, name, capacity)')
-      .eq('organizer_email', organizerEmail)
+      .select('*, halls:halls!events_hall_id_fkey(id, name, capacity)')
+      .eq('organization_id', organizationId)
       .eq('status', 'approved')
       .lt('end_time', nowIso)
       .order('start_time', { ascending: false });
 
     if (eventsErr) {
+      console.error('Error fetching past events for organization:', eventsErr);
       return NextResponse.json({ error: 'Failed to load past events.' }, { status: 500 });
     }
 
     if (!pastEvents || pastEvents.length === 0) {
       return NextResponse.json(
-        { error: 'No past approved events found to generate planning advice.' },
+        { error: 'No past approved events found for this organization to generate planning advice.' },
         { status: 400 }
       );
     }
 
     const eventIds = pastEvents.map((e) => e.id);
 
-    // 2. Fetch all registrations for these events
+    // 4. Fetch all registrations for these events
     const { data: registrations, error: regsErr } = await supabase
       .from('registrations')
       .select('event_id, status, checked_in_at')
       .in('event_id', eventIds);
 
     if (regsErr) {
+      console.error('Error fetching registrations:', regsErr);
       return NextResponse.json({ error: 'Failed to load registration history.' }, { status: 500 });
     }
 
-    // 3. Fetch all reviews for these events from anonymized view
+    // 5. Fetch all reviews for these events from anonymized view
     const { data: reviews, error: reviewsErr } = await supabase
       .from('event_reviews_public')
       .select('event_id, rating')
       .in('event_id', eventIds);
 
     if (reviewsErr) {
+      console.error('Error fetching reviews:', reviewsErr);
       return NextResponse.json({ error: 'Failed to load review history.' }, { status: 500 });
     }
 
-    // 4. Compute Aggregate Stats in SQL/Backend strictly
+    // 6. Compute Aggregate Stats in SQL/Backend strictly
     const confirmedRegs = (registrations || []).filter((r) => r.status === 'confirmed');
     const attendedRegs = confirmedRegs.filter((r) => r.checked_in_at !== null);
 
@@ -138,22 +216,24 @@ export async function POST(req: NextRequest) {
       topHalls: topHalls.slice(0, 3),
     };
 
-    // 5. Call Gemini AI with resilience (exponential backoff & fallback model)
+    // 7. Call Gemini AI with resilience (exponential backoff & fallback model)
     try {
-      const advice = await generateOrganizerAdvice(organizerName, stats);
+      const advice = await generateOrganizerAdvice(orgName, stats);
 
-      // Cache to organizer_ai_insights table
+      // Cache to organization_ai_advice table
       const { error: upsertErr } = await supabase
-        .from('organizer_ai_insights')
-        .upsert({
-          organizer_email: organizerEmail,
-          summary: advice,
-          event_count: pastEvents.length,
-          generated_at: new Date().toISOString(),
-        });
+        .from('organization_ai_advice')
+        .upsert(
+          {
+            organization_id: organizationId,
+            advice,
+            generated_at: new Date().toISOString(),
+          },
+          { onConflict: 'organization_id' }
+        );
 
       if (upsertErr) {
-        console.warn('Failed to cache organizer insights to database:', upsertErr);
+        console.warn('Failed to cache organization advice to database:', upsertErr);
       }
 
       return NextResponse.json({
@@ -163,27 +243,26 @@ export async function POST(req: NextRequest) {
         stats,
       });
     } catch (aiErr: any) {
-      console.error('All Gemini attempts failed for organizer advice:', aiErr?.message || aiErr);
+      console.error('All Gemini attempts failed for organization advice:', aiErr?.message || aiErr);
 
-      // 6. Resilient Fallback: return cached advice if available
-      const { data: cachedInsights } = await supabase
-        .from('organizer_ai_insights')
+      // 8. Resilient Fallback: return cached advice from organization_ai_advice if available
+      const { data: cachedAdviceRow } = await supabase
+        .from('organization_ai_advice')
         .select('*')
-        .eq('organizer_email', organizerEmail)
+        .eq('organization_id', organizationId)
         .maybeSingle();
 
-      if (cachedInsights?.summary) {
+      if (cachedAdviceRow?.advice) {
         return NextResponse.json({
           success: true,
-          summary: cachedInsights.summary,
-          event_count: cachedInsights.event_count || pastEvents.length,
+          summary: cachedAdviceRow.advice,
+          event_count: pastEvents.length,
           stats,
           cached: true,
           notice: 'AI is currently busy. Displaying previously generated planning advice.',
         });
       }
 
-      // If no cached insight exists, return friendly error without raw error details
       return NextResponse.json(
         { error: 'AI is busy, try again' },
         { status: 503 }

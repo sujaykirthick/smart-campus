@@ -23,6 +23,8 @@ import {
   Loader2,
   Hourglass,
   HandHelping,
+  Plus,
+  Camera,
 } from 'lucide-react';
 
 interface SeatCountInfo {
@@ -56,8 +58,8 @@ export default function EventsPage() {
 
   const supabase = useMemo(() => createClient(), []);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       // 1. Fetch current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -105,7 +107,7 @@ export default function EventsPage() {
           .from('events')
           .select(`
             *,
-            halls (
+            halls:halls!events_hall_id_fkey (
               id,
               name,
               capacity,
@@ -115,6 +117,11 @@ export default function EventsPage() {
               id,
               name,
               is_active
+            ),
+            organizations (
+              id,
+              name,
+              type
             )
           `)
           .eq('status', 'approved')
@@ -147,12 +154,29 @@ export default function EventsPage() {
       console.error('Error loading events feed:', err);
       setErrorMsg(err?.message || 'Failed to load events.');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [supabase]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Silent polling every 30s and on window focus so accepted volunteer status updates promptly
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 30000);
+
+    const onFocus = () => {
+      fetchData(true);
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [fetchData]);
 
   // Handle Register
@@ -164,6 +188,11 @@ export default function EventsPage() {
 
     if (userProfile.role !== 'student') {
       setErrorMsg('Only students can register for events.');
+      return;
+    }
+
+    if (userProfile.email.toLowerCase().trim() === event.organizer_email?.toLowerCase().trim()) {
+      setErrorMsg('You are hosting this event and cannot register for it');
       return;
     }
 
@@ -221,19 +250,12 @@ export default function EventsPage() {
     setActionLoadingId(`vol-${event.id}`);
 
     try {
-      const { error } = await supabase
-        .from('volunteers')
-        .insert({
-          event_id: event.id,
-          student_email: userProfile.email,
-        });
+      const { error } = await supabase.rpc('apply_volunteer', {
+        p_event_id: event.id,
+      });
 
       if (error) {
-        if (error.message.includes('unique') || error.code === '23505') {
-          setErrorMsg('You have already applied as a volunteer for this event.');
-        } else {
-          setErrorMsg(error.message);
-        }
+        setErrorMsg(error.message);
         return;
       }
 
@@ -241,6 +263,33 @@ export default function EventsPage() {
       fetchData();
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to submit volunteer application.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Handle Withdraw Volunteer Application
+  const handleWithdrawVolunteer = async (event: CampusEvent) => {
+    if (!userProfile) return;
+
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setActionLoadingId(`vol-with-${event.id}`);
+
+    try {
+      const { error } = await supabase.rpc('withdraw_volunteer', {
+        p_event_id: event.id,
+      });
+
+      if (error) {
+        setErrorMsg(error.message);
+        return;
+      }
+
+      setSuccessMsg(`Withdrew volunteer application for "${event.title}".`);
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to withdraw volunteer application.');
     } finally {
       setActionLoadingId(null);
     }
@@ -404,18 +453,28 @@ export default function EventsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {(!userProfile || userProfile.role === 'student' || userProfile.role === 'faculty') && (
+              <Link
+                href="/organizer"
+                className="inline-flex items-center gap-1.5 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors shadow-xs"
+              >
+                <Plus className="h-4 w-4" />
+                Propose an event
+              </Link>
+            )}
+
             {myRegistrations.length > 0 && (
               <Link
                 href="/my-events"
-                className="inline-flex items-center gap-2 rounded-md bg-[#A4161A] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
+                className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3.5 py-2 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors"
               >
-                <QrCode className="h-4 w-4" />
+                <QrCode className="h-4 w-4 text-[#A4161A]" />
                 My Passes ({myRegistrations.length})
               </Link>
             )}
 
             <button
-              onClick={fetchData}
+              onClick={() => fetchData()}
               className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
               title="Refresh schedule"
             >
@@ -615,9 +674,21 @@ export default function EventsPage() {
             const hasStarted = nowTime >= evStartMs;
             const hasEnded = nowTime > evEndMs;
 
-            const myReg = myRegistrations.find((r) => r.event_id === event.id);
-            const isRegistered = !!myReg;
-            const isWaitlisted = myReg?.status === 'waitlisted';
+            const isHost = !!(
+              userProfile?.email &&
+              event.organizer_email &&
+              userProfile.email.toLowerCase().trim() === event.organizer_email.toLowerCase().trim()
+            );
+
+            const myReg = isHost
+              ? undefined
+              : myRegistrations.find(
+                  (r) =>
+                    r.event_id === event.id &&
+                    r.student_email?.toLowerCase().trim() === userProfile?.email?.toLowerCase().trim()
+                );
+            const isRegistered = !isHost && !!myReg;
+            const isWaitlisted = isRegistered && myReg?.status === 'waitlisted';
 
             const myVol = myVolunteers.find((v) => v.event_id === event.id);
             const volunteersNeeded = event.volunteers_needed || 0;
@@ -652,7 +723,11 @@ export default function EventsPage() {
                       </span>
                     )}
 
-                    {isRegistered ? (
+                    {isHost ? (
+                      <span className="rounded bg-neutral-900 border border-neutral-700 px-2 py-0.5 text-[10px] font-semibold text-white flex items-center gap-1">
+                        <Building2 className="h-2.5 w-2.5 text-[#A4161A]" /> You&apos;re hosting
+                      </span>
+                    ) : isRegistered ? (
                       isWaitlisted ? (
                         <span className="rounded bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-900 flex items-center gap-1">
                           <Hourglass className="h-2.5 w-2.5" /> Waitlisted
@@ -687,10 +762,10 @@ export default function EventsPage() {
                 {/* Card Body */}
                 <div className="flex flex-1 flex-col p-4 justify-between space-y-3">
                   <div className="space-y-1.5">
-                    {/* Club / Dept Chip & Seats */}
+                    {/* Club / Dept / Organization Chip & Seats */}
                     <div className="flex items-center justify-between text-xs">
                       <span className="inline-flex items-center rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-700">
-                        {event.club_or_dept || 'Campus Event'}
+                        {event.organizations?.name || event.club_or_dept || (event.organizer_type === 'standalone' ? 'Standalone' : 'Campus Event')}
                       </span>
 
                       {seatsLeft !== null && (
@@ -742,7 +817,22 @@ export default function EventsPage() {
 
                   {/* Actions Section */}
                   <div className="pt-2 border-t border-neutral-100 space-y-2">
-                    {isRegistered ? (
+                    {isHost ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between rounded-md bg-neutral-100 border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-800">
+                          <span className="flex items-center gap-1.5">
+                            <Building2 className="h-4 w-4 text-[#A4161A]" />
+                            You&apos;re hosting this event
+                          </span>
+                          <Link
+                            href={`/organizer/events/${event.id}`}
+                            className="inline-flex items-center gap-1 rounded bg-[#A4161A] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#851215] transition-colors"
+                          >
+                            Manage event
+                          </Link>
+                        </div>
+                      </div>
+                    ) : isRegistered ? (
                       <div className="space-y-1.5">
                         {isWaitlisted ? (
                           <div className="flex items-center justify-between rounded-md bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-900">
@@ -808,25 +898,68 @@ export default function EventsPage() {
                           )}
                         </button>
 
-                        {/* Volunteer apply button */}
-                        {volunteersNeeded > 0 && !hasStarted && (
-                          <div>
-                            {myVol ? (
-                              <div className="rounded-md bg-neutral-100 border border-neutral-200 px-3 py-1 text-center text-[11px] font-medium text-neutral-700">
-                                Volunteer Applied ({myVol.status})
+                        {/* Volunteer section */}
+                        {!isHost && (volunteersNeeded > 0 || (myVol && myVol.status !== 'withdrawn')) && (
+                          <div className="pt-1.5 border-t border-neutral-100 space-y-1.5">
+                            {myVol && myVol.status !== 'withdrawn' ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2 rounded-md bg-neutral-50 border border-neutral-200 px-2.5 py-1.5 text-[11px]">
+                                  <div>
+                                    {myVol.status === 'accepted' ? (
+                                      <span className="font-semibold text-emerald-800 flex items-center gap-1">
+                                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Accepted as Volunteer
+                                      </span>
+                                    ) : myVol.status === 'rejected' ? (
+                                      <span className="font-semibold text-neutral-600 flex items-center gap-1">
+                                        <XCircle className="h-3 w-3 text-neutral-400" /> Not selected
+                                      </span>
+                                    ) : (
+                                      <span className="font-semibold text-amber-800 flex items-center gap-1">
+                                        <Clock className="h-3 w-3 text-amber-600" /> Applied (pending review)
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {myVol.status !== 'rejected' && !hasEnded && (
+                                    <button
+                                      onClick={() => handleWithdrawVolunteer(event)}
+                                      disabled={actionLoadingId === `vol-with-${event.id}`}
+                                      className="text-[11px] text-neutral-500 hover:text-[#991B1B] underline transition-colors cursor-pointer disabled:opacity-50"
+                                    >
+                                      {actionLoadingId === `vol-with-${event.id}` ? 'Withdrawing...' : 'Withdraw'}
+                                    </button>
+                                  )}
+                                </div>
+
+                                {myVol.status === 'accepted' && (
+                                  <div className="space-y-1">
+                                    <Link
+                                      href={`/organizer/scan/${event.id}`}
+                                      className="w-full flex items-center justify-center gap-1.5 rounded-md bg-emerald-700 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors shadow-xs"
+                                    >
+                                      <Camera className="h-3.5 w-3.5" />
+                                      Scan attendance
+                                    </Link>
+                                    {(nowTime < evStartMs - 30 * 60 * 1000 || nowTime > evEndMs + 30 * 60 * 1000) && (
+                                      <p className="text-[10px] text-neutral-500 text-center italic">
+                                        Scanning opens 30 min before the event starts and closes 30 min after it ends
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                            ) : (
+                            ) : !hasStarted && (
                               <button
                                 onClick={() => handleApplyVolunteer(event)}
                                 disabled={actionLoadingId === `vol-${event.id}`}
-                                className="w-full flex items-center justify-center gap-1 rounded-md border border-neutral-300 bg-white py-1.5 text-[11px] font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+                                className="w-full flex items-center justify-center gap-1.5 rounded-md border border-neutral-300 bg-white py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer disabled:opacity-50"
                               >
                                 {actionLoadingId === `vol-${event.id}` ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
                                   <>
-                                    <HandHelping className="h-3 w-3 text-[#A4161A]" />
-                                    Apply as Volunteer
+                                    <HandHelping className="h-3.5 w-3.5 text-[#A4161A]" />
+                                    Volunteer
                                   </>
                                 )}
                               </button>

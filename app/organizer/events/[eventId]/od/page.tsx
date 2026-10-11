@@ -94,7 +94,7 @@ export default function OrganizerODPage() {
       // Fetch event
       const { data: eventData } = await supabase
         .from('events')
-        .select('*, halls(id, name, capacity, location), fests(id, name)')
+        .select('*, halls:halls!events_hall_id_fkey(id, name, capacity, location), fests(id, name)')
         .eq('id', eventId)
         .maybeSingle();
 
@@ -103,7 +103,7 @@ export default function OrganizerODPage() {
         return;
       }
 
-      // Authorization: Organizer or Affairs only
+      // Authorization: Organizer or Approvers
       if (eventData.organizer_email !== user.email) {
         const { data: userRole } = await supabase
           .from('allowed_users')
@@ -111,8 +111,8 @@ export default function OrganizerODPage() {
           .eq('email', user.email)
           .maybeSingle();
 
-        if (userRole?.role !== 'affairs') {
-          alert('Unauthorized: Only the event organizer can access the OD attendance list.');
+        if (!userRole || !['student_affairs', 'event_office', 'cd'].includes(userRole.role)) {
+          alert('Unauthorized: Only the event organizer or approval authorities can access the OD attendance list.');
           router.push('/events');
           return;
         }

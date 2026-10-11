@@ -1,6 +1,28 @@
-export type UserRole = 'student' | 'club' | 'department' | 'affairs';
+export type UserRole =
+  | 'student'
+  | 'faculty'
+  | 'student_affairs'
+  | 'event_office'
+  | 'cd'
+  | 'club'
+  | 'department'
+  | 'affairs';
 
 export type EventStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
+
+export type ApprovalStage = 'student_affairs' | 'event_office' | 'cd';
+
+export type ApprovalDecision = 'approved' | 'rejected' | 'venue_changed';
+
+export interface EventApproval {
+  id: string;
+  event_id: string;
+  stage: ApprovalStage;
+  approver_email: string;
+  decision: ApprovalDecision;
+  reason: string | null;
+  created_at: string;
+}
 
 export interface Fest {
   id: string;
@@ -30,13 +52,47 @@ export interface Hall {
 }
 
 export interface PublicHallBooking {
+  event_id?: string;
   hall_id: string;
   hall_name: string;
   title: string;
   start_time: string;
   end_time: string;
-  status: 'submitted' | 'approved';
+  status: 'booked' | 'pending' | 'submitted' | 'approved';
+  approval_stage?: ApprovalStage;
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  type: 'club' | 'department';
+  faculty_coordinator?: string | null;
+  created_at?: string;
+}
+
+export interface OrganizationMember {
+  organization_id: string;
+  email: string;
+  member_role: 'lead' | 'member';
+  added_by?: string | null;
+  created_at?: string;
+  allowed_users?: AllowedUser | null;
+}
+
+export interface CourseCodeDepartment {
+  course_code: string;
+  organization_id: string;
+  created_at?: string;
+  organizations?: Organization | null;
+}
+
+export interface OrganizationAIAdvice {
+  organization_id: string;
+  advice: OrganizerPlanningAdvice;
+  generated_at: string;
+}
+
+export type OrganizerType = 'standalone' | 'club' | 'department';
 
 export interface CampusEvent {
   id: string;
@@ -44,10 +100,15 @@ export interface CampusEvent {
   description: string | null;
   organizer_email: string;
   club_or_dept: string | null;
+  organizer_type?: OrganizerType;
+  organization_id?: string | null;
+  organizations?: Organization | null;
   hall_id: string;
+  requested_hall_id?: string | null;
   start_time: string;
   end_time: string;
   status: EventStatus;
+  approval_stage?: ApprovalStage;
   rejection_reason: string | null;
   registration_link: string | null;
   poster_url: string | null;
@@ -56,9 +117,11 @@ export interface CampusEvent {
   created_at: string;
   updated_at: string;
   halls?: Hall | null;
+  requested_hall?: Hall | null;
   fests?: Fest | null;
   registrations_count?: number;
   waitlist_count?: number;
+  approvals?: EventApproval[];
 }
 
 export interface Registration {
@@ -75,7 +138,7 @@ export interface Registration {
   events?: CampusEvent;
 }
 
-export type VolunteerStatus = 'pending' | 'accepted' | 'rejected';
+export type VolunteerStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
 
 export interface Volunteer {
   id: string;
@@ -83,6 +146,8 @@ export interface Volunteer {
   student_email: string;
   status: VolunteerStatus;
   applied_at: string;
+  decided_at?: string | null;
+  decided_by?: string | null;
   student_name?: string;
   roll_no?: string;
   events?: CampusEvent;

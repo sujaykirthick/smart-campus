@@ -21,7 +21,7 @@ export async function POST(
     // 1. Fetch Event & Validate Ownership
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('*, halls(id, name, capacity, location)')
+      .select('*, halls:halls!events_hall_id_fkey(id, name, capacity, location)')
       .eq('id', eventId)
       .maybeSingle();
 
@@ -29,7 +29,7 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
     }
 
-    // Check organizer or affairs authorization
+    // Check organizer or approvers authorization
     if (event.organizer_email !== user.email) {
       const { data: userProfile } = await supabase
         .from('allowed_users')
@@ -37,9 +37,9 @@ export async function POST(
         .eq('email', user.email)
         .maybeSingle();
 
-      if (userProfile?.role !== 'affairs') {
+      if (!userProfile || !['affairs', 'student_affairs', 'event_office', 'cd'].includes(userProfile.role)) {
         return NextResponse.json(
-          { error: 'Unauthorized: Only the event organizer can generate insights.' },
+          { error: 'Unauthorized: Only the event organizer or approval authorities can generate insights.' },
           { status: 403 }
         );
       }
